@@ -105,4 +105,32 @@ class UserController extends BaseController
             return $this->error('Failed to update user permissions', $e->getMessage(), 500);
         }
     }
+    public function list(Request $request)
+{
+    try {
+        $this->authorize('view_user');
+
+        $users = $this->userService->getFilteredUsers($request->all());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Users retrieved successfully',
+            'data' => $users->items(), // 👈 returns array for frontend
+            'pagination' => [
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+                'from' => $users->firstItem(),
+                'to' => $users->lastItem(),
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load users',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 }

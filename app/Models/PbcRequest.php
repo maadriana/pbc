@@ -88,15 +88,6 @@ class PbcRequest extends Model
         return $query->where('status', 'completed');
     }
 
-    public function scopeOverdue($query)
-    {
-        return $query->where('status', 'overdue')
-                    ->orWhere(function ($q) {
-                        $q->where('status', 'pending')
-                          ->where('due_date', '<', Carbon::today());
-                    });
-    }
-
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
@@ -121,7 +112,16 @@ class PbcRequest extends Model
     {
         return $query->where('assigned_to_id', $userId);
     }
-
+public function scopeOverdue($query)
+{
+    return $query->where(function ($q) {
+        $q->where('status', 'overdue')
+          ->orWhere(function ($subQ) {
+              $subQ->where('status', 'pending')
+                   ->where('due_date', '<', Carbon::today());
+          });
+    });
+}
     public function scopeRequestedBy($query, $userId)
     {
         return $query->where('requestor_id', $userId);

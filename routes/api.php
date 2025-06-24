@@ -105,13 +105,15 @@ Route::prefix('v1')->group(function () {
             Route::get('audit-trail', [ReportController::class, 'auditTrail']);
         });
 
+        // Test route
         Route::get('/test', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'API is working',
-        'timestamp' => now(),
-        'laravel_version' => app()->version()
-    ]);
-});
-    });
-});
+            return response()->json([
+                'success' => true,
+                'message' => 'API is working',
+                'timestamp' => now(),
+                'laravel_version' => app()->version()
+            ]);
+        });
+    }); // <- close protected routes group
+
+}); // <- close v1 group

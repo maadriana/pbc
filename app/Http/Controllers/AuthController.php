@@ -15,14 +15,13 @@ class AuthController extends BaseController
 
     public function __construct(AuthService $authService = null)
     {
-        // Make service optional to avoid dependency issues
         $this->authService = $authService ?? app(AuthService::class);
     }
 
     public function login(Request $request)
     {
         try {
-            // Basic validation if LoginRequest doesn't exist
+            // Basic validation
             $credentials = $request->validate([
                 'email' => 'required|email',
                 'password' => 'required|string',
@@ -32,12 +31,32 @@ class AuthController extends BaseController
             $result = $this->authService->login($credentials);
 
             if (!$result['success']) {
+                // For web requests, redirect back with errors
+                if (!$request->expectsJson()) {
+                    return redirect()->back()
+                        ->withErrors(['email' => $result['message']])
+                        ->withInput($request->only('email', 'remember'));
+                }
+
                 return $this->error($result['message'], null, 401);
+            }
+
+            // For web requests, redirect to dashboard
+            if (!$request->expectsJson()) {
+                return redirect()->intended(route('dashboard'));
             }
 
             return $this->success($result['data'], 'Login successful');
         } catch (\Exception $e) {
             \Log::error('Login failed: ' . $e->getMessage());
+
+            // For web requests, redirect back with errors
+            if (!$request->expectsJson()) {
+                return redirect()->back()
+                    ->withErrors(['email' => 'Login failed. Please try again.'])
+                    ->withInput($request->only('email', 'remember'));
+            }
+
             return $this->error('Login failed: ' . $e->getMessage(), null, 500);
         }
     }
@@ -45,7 +64,6 @@ class AuthController extends BaseController
     public function register(Request $request)
     {
         try {
-            // Basic validation
             $userData = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users',
@@ -57,9 +75,22 @@ class AuthController extends BaseController
 
             $result = $this->authService->register($userData);
 
+            // For web requests, redirect to dashboard
+            if (!$request->expectsJson()) {
+                return redirect()->route('dashboard')->with('success', 'Registration successful!');
+            }
+
             return $this->success($result, 'User registered successfully', 201);
         } catch (\Exception $e) {
             \Log::error('Registration failed: ' . $e->getMessage());
+
+            // For web requests, redirect back with errors
+            if (!$request->expectsJson()) {
+                return redirect()->back()
+                    ->withErrors(['email' => 'Registration failed. Please try again.'])
+                    ->withInput();
+            }
+
             return $this->error('Registration failed: ' . $e->getMessage(), null, 500);
         }
     }
@@ -70,6 +101,11 @@ class AuthController extends BaseController
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
+
+            // For web requests, redirect to login
+            if (!$request->expectsJson()) {
+                return redirect()->route('login')->with('status', 'You have been logged out successfully.');
+            }
 
             return $this->success(null, 'Logged out successfully');
         } catch (\Exception $e) {

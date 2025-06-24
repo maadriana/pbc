@@ -187,4 +187,27 @@ class User extends Authenticatable
     {
         return ucwords(str_replace('_', ' ', $this->role));
     }
+    public function unreadNotifications()
+{
+    return $this->morphMany('Illuminate\Notifications\DatabaseNotification', 'notifiable')
+                ->whereNull('read_at');
 }
+public function getAllPermissionsAttribute()
+{
+    // If system admin, return all permissions
+    if ($this->isSystemAdmin()) {
+        return collect([
+            'view_user', 'create_user', 'edit_user', 'delete_user',
+            'view_client', 'create_client', 'edit_client', 'delete_client',
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'approve_document', 'delete_document',
+            'send_reminder', 'view_audit_log', 'export_reports',
+            'manage_settings', 'manage_permissions'
+        ]);
+    }
+
+    return $this->permissions ? $this->permissions->pluck('permission') : collect();
+}
+}
+

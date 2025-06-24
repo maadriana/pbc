@@ -25,14 +25,16 @@ class DashboardService
     }
 
     public function getStatistics(User $user): array
-    {
+{
+    try {
         $stats = [];
 
         if ($user->isSystemAdmin() || $user->isEngagementPartner()) {
             $stats = [
                 'total_clients' => Client::count(),
                 'active_projects' => Project::where('status', 'active')->count(),
-                'total_users' => User::where('is_active', true)->count(),
+                'active_users' => User::where('is_active', true)->count(),
+                'total_users' => User::count(),
                 'total_requests' => PbcRequest::count(),
                 'completed_requests' => PbcRequest::where('status', 'completed')->count(),
                 'pending_requests' => PbcRequest::where('status', 'pending')->count(),
@@ -47,6 +49,7 @@ class DashboardService
                 'my_projects' => count($projectIds),
                 'my_requests' => PbcRequest::where('requestor_id', $user->id)->count(),
                 'assigned_requests' => PbcRequest::where('assigned_to_id', $user->id)->count(),
+                'total_requests' => PbcRequest::whereIn('project_id', $projectIds)->count(),
                 'completed_requests' => PbcRequest::where('requestor_id', $user->id)
                     ->where('status', 'completed')->count(),
                 'pending_requests' => PbcRequest::where('assigned_to_id', $user->id)
@@ -57,6 +60,7 @@ class DashboardService
         } else { // Guest/Client
             $stats = [
                 'assigned_requests' => PbcRequest::where('assigned_to_id', $user->id)->count(),
+                'total_requests' => PbcRequest::where('assigned_to_id', $user->id)->count(),
                 'completed_requests' => PbcRequest::where('assigned_to_id', $user->id)
                     ->where('status', 'completed')->count(),
                 'pending_requests' => PbcRequest::where('assigned_to_id', $user->id)
@@ -68,14 +72,32 @@ class DashboardService
         }
 
         // Calculate completion rate
-        $totalRequests = $stats['total_requests'] ?? $stats['assigned_requests'] ?? 0;
+        $totalRequests = $stats['total_requests'] ?? 0;
         $completedRequests = $stats['completed_requests'] ?? 0;
         $stats['completion_rate'] = $totalRequests > 0
             ? round(($completedRequests / $totalRequests) * 100, 2)
             : 0;
 
         return $stats;
+    } catch (\Exception $e) {
+        \Log::error('Dashboard statistics error: ' . $e->getMessage());
+
+        // Return default stats if there's an error
+        return [
+            'total_clients' => 0,
+            'active_projects' => 0,
+            'active_users' => 0,
+            'total_users' => User::count(),
+            'total_requests' => 0,
+            'completed_requests' => 0,
+            'pending_requests' => 0,
+            'overdue_requests' => 0,
+            'documents_uploaded' => 0,
+            'documents_approved' => 0,
+            'completion_rate' => 0,
+        ];
     }
+}
 
     public function getRecentActivity(User $user): array
     {

@@ -17,10 +17,30 @@ class DashboardController extends BaseController
     public function index(Request $request)
     {
         try {
+            // For web routes, return blade view
+            if ($request->expectsJson()) {
+                $data = $this->dashboardService->getDashboardData($request->user());
+                return $this->success($data, 'Dashboard data retrieved successfully');
+            }
+
+            // For blade view
             $data = $this->dashboardService->getDashboardData($request->user());
-            return $this->success($data, 'Dashboard data retrieved successfully');
+
+            return view('dashboard', [
+                'stats' => $data['statistics'],
+                'recent_activity' => $data['recent_activity'],
+                'pending_requests' => $data['pending_requests'],
+                'overdue_requests' => $data['overdue_requests'],
+                'upcoming_deadlines' => $data['upcoming_deadlines'],
+                'charts_data' => $data['charts_data'],
+            ]);
         } catch (\Exception $e) {
-            return $this->error('Failed to retrieve dashboard data', $e->getMessage(), 500);
+            if ($request->expectsJson()) {
+                return $this->error('Failed to retrieve dashboard data', $e->getMessage(), 500);
+            }
+
+            // For blade view, redirect with error
+            return redirect()->back()->with('error', 'Failed to load dashboard data');
         }
     }
 
