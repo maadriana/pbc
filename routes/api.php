@@ -20,10 +20,9 @@ use App\Http\Controllers\ReportController;
 |--------------------------------------------------------------------------
 */
 
-// Public routes
 Route::prefix('v1')->group(function () {
 
-    // Authentication routes
+    // 🔓 Public auth routes
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('register', [AuthController::class, 'register']);
@@ -35,35 +34,42 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Protected routes
-    Route::middleware(['auth:web', 'pbc.permission'])->group(function () {
+    // 🔐 Protected routes
+    Route::middleware(['auth:sanctum', 'pbc.permission'])->group(function () {
 
-        // Dashboard routes
+        // 📊 Dashboard
         Route::prefix('dashboard')->group(function () {
             Route::get('/', [DashboardController::class, 'index']);
             Route::get('stats', [DashboardController::class, 'stats']);
             Route::get('recent-activity', [DashboardController::class, 'recentActivity']);
         });
 
-        // User management routes
-        Route::apiResource('users', UserController::class);
+        // 👥 User Management (with named routes)
+        Route::apiResource('users', UserController::class)->names([
+            'index' => 'pbc.users.index',
+            'store' => 'pbc.users.store',
+            'show' => 'pbc.users.show',
+            'update' => 'pbc.users.update',
+            'destroy' => 'pbc.users.destroy',
+        ]);
+
         Route::prefix('users/{user}')->group(function () {
-            Route::get('permissions', [UserController::class, 'permissions']);
-            Route::put('permissions', [UserController::class, 'updatePermissions']);
+            Route::get('permissions', [UserController::class, 'permissions'])->name('pbc.users.permissions');
+            Route::put('permissions', [UserController::class, 'updatePermissions'])->name('pbc.users.updatePermissions');
         });
 
-        // Client management routes
+        // 🏢 Client Management
         Route::apiResource('clients', ClientController::class);
         Route::get('clients/{client}/projects', [ClientController::class, 'projects']);
 
-        // Project management routes
+        // 📁 Project Management
         Route::apiResource('projects', ProjectController::class);
         Route::prefix('projects/{project}')->group(function () {
             Route::get('pbc-requests', [ProjectController::class, 'pbcRequests']);
             Route::put('update-progress', [ProjectController::class, 'updateProgress']);
         });
 
-        // PBC Request routes
+        // 📄 PBC Request Management
         Route::apiResource('pbc-requests', PbcRequestController::class);
         Route::prefix('pbc-requests')->group(function () {
             Route::put('bulk-update', [PbcRequestController::class, 'bulkUpdate']);
@@ -73,7 +79,7 @@ Route::prefix('v1')->group(function () {
             Route::put('reopen', [PbcRequestController::class, 'reopen']);
         });
 
-        // PBC Document routes
+        // 📎 PBC Document Management
         Route::apiResource('pbc-documents', PbcDocumentController::class)->except(['update']);
         Route::prefix('pbc-documents/{document}')->group(function () {
             Route::get('download', [PbcDocumentController::class, 'download']);
@@ -82,30 +88,30 @@ Route::prefix('v1')->group(function () {
             Route::put('reject', [PbcDocumentController::class, 'reject']);
         });
 
-        // PBC Comment routes
+        // 💬 Comments
         Route::get('pbc-requests/{pbcRequest}/comments', [PbcCommentController::class, 'index']);
         Route::post('pbc-comments', [PbcCommentController::class, 'store']);
         Route::put('pbc-comments/{comment}', [PbcCommentController::class, 'update']);
         Route::delete('pbc-comments/{comment}', [PbcCommentController::class, 'destroy']);
 
-        // PBC Reminder routes
+        // 🔔 Reminders
         Route::apiResource('pbc-reminders', PbcReminderController::class)->only(['index', 'store']);
         Route::prefix('pbc-reminders')->group(function () {
             Route::put('bulk-send', [PbcReminderController::class, 'bulkSend']);
         });
         Route::put('pbc-reminders/{reminder}/mark-read', [PbcReminderController::class, 'markAsRead']);
 
-        // PBC Category routes
+        // 📂 PBC Categories
         Route::apiResource('pbc-categories', PbcCategoryController::class);
 
-        // Report routes
+        // 📈 Reports
         Route::prefix('reports')->group(function () {
             Route::get('pbc-status', [ReportController::class, 'pbcStatus']);
             Route::get('project-progress', [ReportController::class, 'projectProgress']);
             Route::get('audit-trail', [ReportController::class, 'auditTrail']);
         });
 
-        // Test route
+        // 🧪 API health check
         Route::get('/test', function () {
             return response()->json([
                 'success' => true,
@@ -114,6 +120,7 @@ Route::prefix('v1')->group(function () {
                 'laravel_version' => app()->version()
             ]);
         });
-    }); // <- close protected routes group
 
-}); // <- close v1 group
+    }); // 🔐 End of protected routes
+
+}); // 📦 End of /v1

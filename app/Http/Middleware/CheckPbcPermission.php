@@ -149,6 +149,8 @@ class CheckPbcPermission
                 'show' => ['view_user'],
                 'update' => ['edit_user'],
                 'destroy' => ['delete_user'],
+                'permissions' => ['view_user'],
+                'updatePermissions' => ['manage_permissions'],
             ],
             'ClientController' => [
                 'index' => ['view_client'],

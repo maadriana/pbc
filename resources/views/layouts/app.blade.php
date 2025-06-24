@@ -730,71 +730,21 @@
                             @endif
                         </button>
 
-                        <!-- Profile Dropdown -->
-                        <div class="profile-dropdown">
-                            <button class="profile-trigger" onclick="toggleProfileMenu()">
-                                <div class="profile-avatar">
-                                    {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
-                                </div>
-                                <div class="profile-info">
-                                    <div class="profile-name">{{ Str::limit(auth()->user()->name, 15) }}</div>
-                                    <div class="profile-role">{{ ucwords(str_replace('_', ' ', auth()->user()->role)) }}</div>
-                                </div>
-                                <i class="fas fa-chevron-down profile-chevron"></i>
-                            </button>
+                        <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+    @csrf
+    <button type="submit" style="
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+        cursor: pointer;
+    ">
+        <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i> Logout
+    </button>
+</form>
 
-                            <div class="profile-menu" id="profileMenu">
-                                <!-- Profile Header -->
-                                <div class="profile-menu-header">
-                                    <div class="profile-menu-name">{{ auth()->user()->name }}</div>
-                                    <div class="profile-menu-email">{{ auth()->user()->email }}</div>
-                                    <div class="profile-menu-role">{{ ucwords(str_replace('_', ' ', auth()->user()->role)) }}</div>
-                                </div>
-
-                                <!-- Menu Items -->
-                                <div class="profile-menu-body">
-                                    <a href="#" class="profile-menu-item">
-                                        <div class="profile-menu-icon">
-                                            <i class="fas fa-user"></i>
-                                        </div>
-                                        <span>My Profile</span>
-                                    </a>
-
-                                    <a href="#" class="profile-menu-item">
-                                        <div class="profile-menu-icon">
-                                            <i class="fas fa-cog"></i>
-                                        </div>
-                                        <span>Account Settings</span>
-                                    </a>
-
-                                    <a href="#" class="profile-menu-item">
-                                        <div class="profile-menu-icon">
-                                            <i class="fas fa-history"></i>
-                                        </div>
-                                        <span>Activity Log</span>
-                                    </a>
-
-                                    <a href="#" class="profile-menu-item">
-                                        <div class="profile-menu-icon">
-                                            <i class="fas fa-question-circle"></i>
-                                        </div>
-                                        <span>Help & Support</span>
-                                    </a>
-
-                                    <div class="profile-menu-separator"></div>
-
-                                    <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
-                                        @csrf
-                                        <button type="submit" class="profile-menu-item profile-menu-logout" style="width: 100%; border: none; background: none; text-align: left; cursor: pointer;">
-                                            <div class="profile-menu-icon">
-                                                <i class="fas fa-sign-out-alt"></i>
-                                            </div>
-                                            <span>Sign Out</span>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

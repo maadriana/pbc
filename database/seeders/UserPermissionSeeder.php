@@ -13,7 +13,7 @@ class UserPermissionSeeder extends Seeder
         // System Admin permissions
         $systemAdmin = User::where('role', 'system_admin')->first();
         $adminPermissions = [
-            'create_user', 'edit_user', 'delete_user', 'view_user',
+            'create_user', 'edit_user', 'delete_user', 'view_user', 'manage_permissions',
             'create_client', 'edit_client', 'delete_client', 'view_client',
             'create_project', 'edit_project', 'delete_project', 'view_project',
             'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request', 'view_pbc_request',
@@ -70,6 +70,7 @@ class UserPermissionSeeder extends Seeder
         // Associate permissions
         $associates = User::where('role', 'associate')->get();
         $associatePermissions = [
+            'view_dashboard',
             'view_client', 'view_project',
             'create_pbc_request', 'edit_pbc_request', 'view_pbc_request',
             'download_document', 'send_reminder'
