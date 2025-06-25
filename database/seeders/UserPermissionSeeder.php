@@ -10,94 +10,176 @@ class UserPermissionSeeder extends Seeder
 {
     public function run()
     {
-        // System Admin permissions
-        $systemAdmin = User::where('role', 'system_admin')->first();
+        // Clear existing permissions
+        UserPermission::truncate();
+
+        // System Admin permissions (Level 1) - FULL ACCESS TO EVERYTHING
+        $systemAdmins = User::where('role', 'system_admin')->get();
         $adminPermissions = [
-            'create_user', 'edit_user', 'delete_user', 'view_user', 'manage_permissions',
-            'create_client', 'edit_client', 'delete_client', 'view_client',
-            'create_project', 'edit_project', 'delete_project', 'view_project',
-            'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request', 'view_pbc_request',
-            'approve_document', 'reject_document', 'download_document',
-            'send_reminder', 'view_audit_log', 'manage_settings',
-            'view_dashboard', 'export_reports', 'manage_templates'
+            // User Management - ONLY SYSTEM ADMIN
+            'view_user', 'create_user', 'edit_user', 'delete_user', 'manage_permissions',
+
+            // Client Management - CRUD All
+            'view_client', 'create_client', 'edit_client', 'delete_client',
+
+            // Project Management - CRUD All
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+
+            // PBC Requests - CRUD All
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+
+            // Documents - Full Access
+            'upload_document', 'approve_document', 'delete_document', 'view_document',
+
+            // Communication - Full Access
+            'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
+
+            // Reports - All Data
+            'view_analytics', 'export_reports', 'view_audit_log',
+
+            // System - ONLY SYSTEM ADMIN
+            'manage_settings', 'view_dashboard'
         ];
 
-        foreach ($adminPermissions as $permission) {
-            UserPermission::create([
-                'user_id' => $systemAdmin->id,
-                'permission' => $permission,
-            ]);
+        foreach ($systemAdmins as $admin) {
+            foreach ($adminPermissions as $permission) {
+                UserPermission::create(['user_id' => $admin->id, 'permission' => $permission]);
+            }
         }
 
-        // Engagement Partner permissions
+        // Engagement Partner permissions (Level 2) - Project Leadership
         $engagementPartners = User::where('role', 'engagement_partner')->get();
         $partnerPermissions = [
-            'create_client', 'edit_client', 'view_client',
-            'create_project', 'edit_project', 'view_project',
-            'create_pbc_request', 'edit_pbc_request', 'view_pbc_request',
-            'approve_document', 'reject_document', 'download_document',
-            'send_reminder', 'view_dashboard', 'export_reports'
+            // NO User Management
+
+            // Client Management - CRUD All
+            'view_client', 'create_client', 'edit_client', 'delete_client',
+
+            // Project Management - CRUD All
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+
+            // PBC Requests - CRUD All
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+
+            // Documents - Full Access
+            'upload_document', 'approve_document', 'delete_document', 'view_document',
+
+            // Communication - Full Access
+            'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
+
+            // Reports - Project Data
+            'view_analytics', 'export_reports', 'view_audit_log',
+
+            // Dashboard
+            'view_dashboard'
         ];
 
         foreach ($engagementPartners as $partner) {
             foreach ($partnerPermissions as $permission) {
-                UserPermission::create([
-                    'user_id' => $partner->id,
-                    'permission' => $permission,
-                ]);
+                UserPermission::create(['user_id' => $partner->id, 'permission' => $permission]);
             }
         }
 
-        // Manager permissions
+        // Manager permissions (Level 3) - Project Execution
         $managers = User::where('role', 'manager')->get();
         $managerPermissions = [
-            'edit_client', 'view_client',
-            'edit_project', 'view_project',
-            'create_pbc_request', 'edit_pbc_request', 'view_pbc_request',
-            'approve_document', 'reject_document', 'download_document',
-            'send_reminder', 'view_dashboard'
+            // NO User Management
+
+            // Client Management - Add/Edit Only (NO DELETE)
+            'view_client', 'create_client', 'edit_client',
+
+            // Project Management - CRUD All
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+
+            // PBC Requests - CRUD All
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+
+            // Documents - Full Access
+            'upload_document', 'approve_document', 'delete_document', 'view_document',
+
+            // Communication - Full Access
+            'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
+
+            // Reports - Project Data
+            'view_analytics', 'export_reports', 'view_audit_log',
+
+            // Dashboard
+            'view_dashboard'
         ];
 
         foreach ($managers as $manager) {
             foreach ($managerPermissions as $permission) {
-                UserPermission::create([
-                    'user_id' => $manager->id,
-                    'permission' => $permission,
-                ]);
+                UserPermission::create(['user_id' => $manager->id, 'permission' => $permission]);
             }
         }
 
-        // Associate permissions
+        // Associate permissions (Level 4) - Task Execution
         $associates = User::where('role', 'associate')->get();
         $associatePermissions = [
-            'view_dashboard',
-            'view_client', 'view_project',
-            'create_pbc_request', 'edit_pbc_request', 'view_pbc_request',
-            'download_document', 'send_reminder'
+            // NO User Management
+            // NO Client Management
+
+            // Project Management - Add/Edit Only (NO DELETE)
+            'view_project', 'create_project', 'edit_project',
+
+            // PBC Requests - CRUD All
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+
+            // Documents - Full Access
+            'upload_document', 'approve_document', 'delete_document', 'view_document',
+
+            // Communication - Full Access
+            'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
+
+            // Reports - Task Data
+            'view_analytics', 'export_reports', 'view_audit_log',
+
+            // Dashboard
+            'view_dashboard'
         ];
 
         foreach ($associates as $associate) {
             foreach ($associatePermissions as $permission) {
-                UserPermission::create([
-                    'user_id' => $associate->id,
-                    'permission' => $permission,
-                ]);
+                UserPermission::create(['user_id' => $associate->id, 'permission' => $permission]);
             }
         }
 
-        // Guest (Client) permissions
+        // Guest permissions (Level 5) - View and Upload Only
         $guests = User::where('role', 'guest')->get();
         $guestPermissions = [
-            'view_pbc_request', 'upload_document', 'download_document'
+            // NO User Management
+            // NO Client Management
+            // NO Project Management
+            // NO PBC Request Management
+
+            // Documents - Upload Only
+            'upload_document', 'view_document',
+
+            // Communication - Limited Access
+            'receive_reminder', 'view_messages',
+
+            // Reports - Limited View Only
+            'view_analytics',
+
+            // Dashboard - Limited View
+            'view_dashboard'
         ];
 
         foreach ($guests as $guest) {
             foreach ($guestPermissions as $permission) {
-                UserPermission::create([
-                    'user_id' => $guest->id,
-                    'permission' => $permission,
-                ]);
+                UserPermission::create(['user_id' => $guest->id, 'permission' => $permission]);
             }
         }
+
+        $this->command->info('User permissions seeded successfully according to the access matrix!');
+
+        // Output permission summary
+        $this->command->info('');
+        $this->command->info('Permission Summary:');
+        $this->command->info('System Admin: ' . count($adminPermissions) . ' permissions');
+        $this->command->info('Engagement Partner: ' . count($partnerPermissions) . ' permissions');
+        $this->command->info('Manager: ' . count($managerPermissions) . ' permissions');
+        $this->command->info('Associate: ' . count($associatePermissions) . ' permissions');
+        $this->command->info('Guest: ' . count($guestPermissions) . ' permissions');
     }
 }

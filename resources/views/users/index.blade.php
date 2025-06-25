@@ -474,7 +474,7 @@
 
 @push('styles')
 <style>
-    /* Include all the user management styles from the previous artifact */
+    /* User Management Styles */
     .user-management-header {
         display: flex;
         justify-content: space-between;
@@ -555,6 +555,12 @@
     .btn-info {
         background: #06B6D4;
         color: white;
+    }
+
+    .btn-light {
+        background: #F8FAFC;
+        color: #374151;
+        border: 1px solid #E5E7EB;
     }
 
     .btn-xs {
@@ -1159,32 +1165,278 @@
 
 @push('scripts')
 <script>
-    function userManagement() {
-        return {
-            // Data
-            users: [],
-            selectedUsers: [],
-            filters: {
-                search: '',
-                role: '',
-                access_level: '',
-                is_active: '',
-                sort_by: 'created_at',
-                sort_order: 'desc',
-                per_page: 25
-            },
-            pagination: {},
-            loading: false,
+function userManagement() {
+    return {
+        // Data
+        users: [],
+        selectedUsers: [],
+        filters: {
+            search: '',
+            role: '',
+            access_level: '',
+            is_active: '',
+            sort_by: 'created_at',
+            sort_order: 'desc',
+            per_page: 25
+        },
+        pagination: {},
+        loading: false,
 
-            // Modal states
-            showModal: false,
-            showPermissionsModal: false,
-            isEditing: false,
-            saving: false,
-            savingPermissions: false,
+        // Modal states
+        showModal: false,
+        showPermissionsModal: false,
+        isEditing: false,
+        saving: false,
+        savingPermissions: false,
 
-            // Form data
-            userForm: {
+        // Form data
+        userForm: {
+            name: '',
+            email: '',
+            entity: '',
+            contact_number: '',
+            role: '',
+            access_level: '',
+            password: '',
+            password_confirmation: '',
+            is_active: true
+        },
+
+        // Permissions
+        selectedUser: null,
+        userPermissions: [],
+        permissionGroups: {
+            'User Management': [
+                { key: 'view_user', label: 'View Users', description: 'Can view user list and details' },
+                { key: 'create_user', label: 'Create Users', description: 'Can create new user accounts' },
+                { key: 'edit_user', label: 'Edit Users', description: 'Can modify user information' },
+                { key: 'delete_user', label: 'Delete Users', description: 'Can delete user accounts' }
+            ],
+            'Client Management': [
+                { key: 'view_client', label: 'View Clients', description: 'Can view client list and details' },
+                { key: 'create_client', label: 'Create Clients', description: 'Can add new clients' },
+                { key: 'edit_client', label: 'Edit Clients', description: 'Can modify client information' },
+                { key: 'delete_client', label: 'Delete Clients', description: 'Can remove clients' }
+            ],
+            'Project Management': [
+                { key: 'view_project', label: 'View Projects', description: 'Can view project list and details' },
+                { key: 'create_project', label: 'Create Projects', description: 'Can create new projects' },
+                { key: 'edit_project', label: 'Edit Projects', description: 'Can modify project information' },
+                { key: 'delete_project', label: 'Delete Projects', description: 'Can delete projects' }
+            ],
+            'PBC Requests': [
+                { key: 'view_pbc_request', label: 'View PBC Requests', description: 'Can view PBC request list' },
+                { key: 'create_pbc_request', label: 'Create PBC Requests', description: 'Can create new PBC requests' },
+                { key: 'edit_pbc_request', label: 'Edit PBC Requests', description: 'Can modify PBC requests' },
+                { key: 'delete_pbc_request', label: 'Delete PBC Requests', description: 'Can delete PBC requests' }
+            ],
+            'Documents': [
+                { key: 'upload_document', label: 'Upload Documents', description: 'Can upload documents' },
+                { key: 'approve_document', label: 'Approve Documents', description: 'Can approve/reject documents' },
+                { key: 'delete_document', label: 'Delete Documents', description: 'Can delete documents' }
+            ],
+            'System': [
+                { key: 'send_reminder', label: 'Send Reminders', description: 'Can send email reminders' },
+                { key: 'view_audit_log', label: 'View Audit Logs', description: 'Can view system audit trail' },
+                { key: 'export_reports', label: 'Export Reports', description: 'Can generate and export reports' },
+                { key: 'manage_settings', label: 'Manage Settings', description: 'Can modify system settings' },
+                { key: 'manage_permissions', label: 'Manage Permissions', description: 'Can modify user permissions' }
+            ]
+        },
+
+        errors: {},
+
+        // Initialize
+        async init() {
+            console.log('🚀 User Management Init Starting');
+            await this.loadUsers();
+        },
+
+        // API calls - FIXED ROUTES
+        async loadUsers(page = 1) {
+            console.log('🔍 Loading users - Start');
+            this.loading = true;
+
+            try {
+                const params = new URLSearchParams({
+                    ...this.filters,
+                    page: page
+                });
+
+                // Use web route, not API route
+                const url = `/users?${params}`;
+                console.log('🌐 Web URL:', url);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                console.log('📡 Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log('📊 Response:', result);
+
+                if (result.success) {
+                    this.users = result.data || [];
+                    this.pagination = result.pagination || {};
+                    console.log('✅ Users loaded:', this.users.length);
+                } else {
+                    console.error('❌ Error:', result.message);
+                    this.showError('Failed to load users: ' + result.message);
+                }
+            } catch (error) {
+                console.error('🚨 Network Error:', error);
+                this.showError('Failed to load users: ' + error.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async saveUser() {
+            this.saving = true;
+            this.errors = {};
+
+            try {
+                const url = this.isEditing
+                    ? `/users/${this.userForm.id}`
+                    : '/users';
+
+                const method = this.isEditing ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(this.userForm)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.showSuccess(this.isEditing ? 'User updated successfully' : 'User created successfully');
+                    this.closeModal();
+                    await this.loadUsers();
+                } else {
+                    if (result.errors) {
+                        this.errors = result.errors;
+                    } else {
+                        this.showError(result.message || 'Failed to save user');
+                    }
+                }
+            } catch (error) {
+                this.showError('Network error: ' + error.message);
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async deleteUser(user) {
+            if (!confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/users/${user.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.showSuccess('User deleted successfully');
+                    await this.loadUsers();
+                } else {
+                    this.showError(result.message || 'Failed to delete user');
+                }
+            } catch (error) {
+                this.showError('Network error: ' + error.message);
+            }
+        },
+
+        async loadUserPermissions(user) {
+            try {
+                const response = await fetch(`/users/${user.id}/permissions`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.userPermissions = result.data || [];
+                } else {
+                    this.showError('Failed to load permissions: ' + result.message);
+                }
+            } catch (error) {
+                this.showError('Failed to load permissions: ' + error.message);
+            }
+        },
+
+        async savePermissions() {
+            this.savingPermissions = true;
+
+            try {
+                const response = await fetch(`/users/${this.selectedUser.id}/permissions`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        permissions: this.userPermissions
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.showSuccess('Permissions updated successfully');
+                    this.closePermissionsModal();
+                } else {
+                    this.showError(result.message || 'Failed to update permissions');
+                }
+            } catch (error) {
+                this.showError('Network error: ' + error.message);
+            } finally {
+                this.savingPermissions = false;
+            }
+        },
+
+        // Modal methods
+        openCreateModal() {
+            this.isEditing = false;
+            this.userForm = {
                 name: '',
                 email: '',
                 entity: '',
@@ -1194,390 +1446,199 @@
                 password: '',
                 password_confirmation: '',
                 is_active: true
-            },
+            };
+            this.errors = {};
+            this.showModal = true;
+        },
 
-            // Permissions
-            selectedUser: null,
-            userPermissions: [],
-            permissionGroups: {
-                'User Management': [
-                    { key: 'view_user', label: 'View Users', description: 'Can view user list and details' },
-                    { key: 'create_user', label: 'Create Users', description: 'Can create new user accounts' },
-                    { key: 'edit_user', label: 'Edit Users', description: 'Can modify user information' },
-                    { key: 'delete_user', label: 'Delete Users', description: 'Can delete user accounts' }
-                ],
-                'Client Management': [
-                    { key: 'view_client', label: 'View Clients', description: 'Can view client list and details' },
-                    { key: 'create_client', label: 'Create Clients', description: 'Can add new clients' },
-                    { key: 'edit_client', label: 'Edit Clients', description: 'Can modify client information' },
-                    { key: 'delete_client', label: 'Delete Clients', description: 'Can remove clients' }
-                ],
-                'Project Management': [
-                    { key: 'view_project', label: 'View Projects', description: 'Can view project list and details' },
-                    { key: 'create_project', label: 'Create Projects', description: 'Can create new projects' },
-                    { key: 'edit_project', label: 'Edit Projects', description: 'Can modify project information' },
-                    { key: 'delete_project', label: 'Delete Projects', description: 'Can delete projects' }
-                ],
-                'PBC Requests': [
-                    { key: 'view_pbc_request', label: 'View PBC Requests', description: 'Can view PBC request list' },
-                    { key: 'create_pbc_request', label: 'Create PBC Requests', description: 'Can create new PBC requests' },
-                    { key: 'edit_pbc_request', label: 'Edit PBC Requests', description: 'Can modify PBC requests' },
-                    { key: 'delete_pbc_request', label: 'Delete PBC Requests', description: 'Can delete PBC requests' }
-                ],
-                'Documents': [
-                    { key: 'upload_document', label: 'Upload Documents', description: 'Can upload documents' },
-                    { key: 'approve_document', label: 'Approve Documents', description: 'Can approve/reject documents' },
-                    { key: 'delete_document', label: 'Delete Documents', description: 'Can delete documents' }
-                ],
-                'System': [
-                    { key: 'send_reminder', label: 'Send Reminders', description: 'Can send email reminders' },
-                    { key: 'view_audit_log', label: 'View Audit Logs', description: 'Can view system audit trail' },
-                    { key: 'export_reports', label: 'Export Reports', description: 'Can generate and export reports' },
-                    { key: 'manage_settings', label: 'Manage Settings', description: 'Can modify system settings' },
-                    { key: 'manage_permissions', label: 'Manage Permissions', description: 'Can modify user permissions' }
-                ]
-            },
+        editUser(user) {
+            this.isEditing = true;
+            this.userForm = {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                entity: user.entity || '',
+                contact_number: user.contact_number || '',
+                role: user.role,
+                access_level: user.access_level,
+                password: '',
+                password_confirmation: '',
+                is_active: user.is_active
+            };
+            this.errors = {};
+            this.showModal = true;
+        },
 
-            errors: {},
+        viewUser(user) {
+            alert(`View user: ${user.name}\nEmail: ${user.email}\nRole: ${this.formatRole(user.role)}`);
+        },
 
-            // Initialize
-            async init() {
-                await this.loadUsers();
-            },
+        async managePermissions(user) {
+            this.selectedUser = user;
+            await this.loadUserPermissions(user);
+            this.showPermissionsModal = true;
+        },
 
-            // API calls
-            async loadUsers(page = 1) {
-    console.log('🔍 Loading users - Start');
-    console.log('📄 Page:', page);
-    console.log('🔧 Filters:', this.filters);
+        closeModal() {
+            this.showModal = false;
+            this.isEditing = false;
+            this.userForm = {};
+            this.errors = {};
+        },
 
-    this.loading = true;
-    try {
-        const params = new URLSearchParams({
-            ...this.filters,
-            page: page
-        });
+        closePermissionsModal() {
+            this.showPermissionsModal = false;
+            this.selectedUser = null;
+            this.userPermissions = [];
+        },
 
-        const url = `/users/list?${params}`;
-        console.log('🌐 API URL:', url);
-
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-
-        console.log('📡 Response status:', response.status);
-
-        const result = await response.json();
-        console.log('📊 API Response:', result);
-
-        if (result.success) {
-            this.users = result.data;
-            this.pagination = result.pagination;
-            console.log('✅ Users loaded:', this.users.length);
-        } else {
-            console.error('❌ API Error:', result.message);
-            this.showError('Failed to load users: ' + result.message);
-        }
-    } catch (error) {
-        console.error('🚨 Network Error:', error);
-        this.showError('Network error: ' + error.message);
-    } finally {
-        this.loading = false;
-        console.log('🔍 Loading users - End');
-    }
-},
-
-
-            async deleteUser(user) {
-                if (!confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`/api/v1/users/${user.id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        this.showSuccess('User deleted successfully');
-                        await this.loadUsers();
-                    } else {
-                        this.showError(result.message || 'Failed to delete user');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
-                }
-            },
-
-            async loadUserPermissions(user) {
-                try {
-                    const response = await fetch(`/api/v1/users/${user.id}/permissions`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        this.userPermissions = result.data;
-                    }
-                } catch (error) {
-                    this.showError('Failed to load permissions: ' + error.message);
-                }
-            },
-
-            async savePermissions() {
-                this.savingPermissions = true;
-
-                try {
-                    const response = await fetch(`/api/v1/users/${this.selectedUser.id}/permissions`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({
-                            permissions: this.userPermissions
-                        })
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        this.showSuccess('Permissions updated successfully');
-                        this.closePermissionsModal();
-                    } else {
-                        this.showError(result.message || 'Failed to update permissions');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
-                } finally {
-                    this.savingPermissions = false;
-                }
-            },
-
-            // Modal methods
-            openCreateModal() {
-                this.isEditing = false;
-                this.userForm = {
-                    name: '',
-                    email: '',
-                    entity: '',
-                    contact_number: '',
-                    role: '',
-                    access_level: '',
-                    password: '',
-                    password_confirmation: '',
-                    is_active: true
-                };
-                this.errors = {};
-                this.showModal = true;
-            },
-
-            editUser(user) {
-                this.isEditing = true;
-                this.userForm = {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    entity: user.entity || '',
-                    contact_number: user.contact_number || '',
-                    role: user.role,
-                    access_level: user.access_level,
-                    password: '',
-                    password_confirmation: '',
-                    is_active: user.is_active
-                };
-                this.errors = {};
-                this.showModal = true;
-            },
-
-            viewUser(user) {
-                // Implement view user details
-                alert(`View user: ${user.name}\nEmail: ${user.email}\nRole: ${this.formatRole(user.role)}`);
-            },
-
-            async managePermissions(user) {
-                this.selectedUser = user;
-                await this.loadUserPermissions(user);
-                this.showPermissionsModal = true;
-            },
-
-            closeModal() {
-                this.showModal = false;
-                this.isEditing = false;
-                this.userForm = {};
-                this.errors = {};
-            },
-
-            closePermissionsModal() {
-                this.showPermissionsModal = false;
-                this.selectedUser = null;
-                this.userPermissions = [];
-            },
-
-            // Selection methods
-            toggleSelectAll(event) {
-                if (event.target.checked) {
-                    this.selectedUsers = this.users.map(user => user.id);
-                } else {
-                    this.selectedUsers = [];
-                }
-            },
-
-            toggleUserSelection(userId) {
-                const index = this.selectedUsers.indexOf(userId);
-                if (index > -1) {
-                    this.selectedUsers.splice(index, 1);
-                } else {
-                    this.selectedUsers.push(userId);
-                }
-            },
-
-            clearSelection() {
+        // Selection methods
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedUsers = this.users.map(user => user.id);
+            } else {
                 this.selectedUsers = [];
-            },
-
-            // Bulk actions
-            async bulkActivate() {
-                if (!confirm(`Activate ${this.selectedUsers.length} selected users?`)) return;
-                // Implement bulk activate
-                this.showSuccess('Users activated successfully');
-                this.clearSelection();
-                await this.loadUsers();
-            },
-
-            async bulkDeactivate() {
-                if (!confirm(`Deactivate ${this.selectedUsers.length} selected users?`)) return;
-                // Implement bulk deactivate
-                this.showSuccess('Users deactivated successfully');
-                this.clearSelection();
-                await this.loadUsers();
-            },
-
-            async bulkDelete() {
-                if (!confirm(`Delete ${this.selectedUsers.length} selected users? This action cannot be undone.`)) return;
-                // Implement bulk delete
-                this.showSuccess('Users deleted successfully');
-                this.clearSelection();
-                await this.loadUsers();
-            },
-
-            // Filter methods
-            clearFilters() {
-                this.filters = {
-                    search: '',
-                    role: '',
-                    access_level: '',
-                    is_active: '',
-                    sort_by: 'created_at',
-                    sort_order: 'desc',
-                    per_page: 25
-                };
-                this.loadUsers();
-            },
-
-            async exportUsers() {
-                try {
-                    const params = new URLSearchParams(this.filters);
-                    const response = await fetch(`/api/v1/users/export?${params}`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    });
-
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'users_export.xlsx';
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                    }
-                } catch (error) {
-                    this.showError('Failed to export users');
-                }
-            },
-
-            // Pagination
-            changePage(page) {
-                if (page >= 1 && page <= this.pagination.last_page) {
-                    this.loadUsers(page);
-                }
-            },
-
-            get visiblePages() {
-                const current = this.pagination.current_page || 1;
-                const last = this.pagination.last_page || 1;
-                const pages = [];
-
-                for (let i = Math.max(1, current - 2); i <= Math.min(last, current + 2); i++) {
-                    pages.push(i);
-                }
-
-                return pages;
-            },
-
-            // Utility methods
-            getUserInitials(name) {
-                return name.split(' ').map(n => n[0]).join('').toUpperCase();
-            },
-
-            getUserAvatarColor(name) {
-                const colors = [
-                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                    'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-                    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-                    'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)'
-                ];
-                const index = name.charCodeAt(0) % colors.length;
-                return colors[index];
-            },
-
-            formatRole(role) {
-                return role.split('_').map(word =>
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ');
-            },
-
-            formatDate(dateString) {
-                return new Date(dateString).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            },
-
-            // Notification methods
-            showSuccess(message) {
-                // You can implement your preferred notification system
-                alert(message); // Replace with your notification system
-            },
-
-            showError(message) {
-                // You can implement your preferred notification system
-                alert(message); // Replace with your notification system
             }
+        },
+
+        toggleUserSelection(userId) {
+            const index = this.selectedUsers.indexOf(userId);
+            if (index > -1) {
+                this.selectedUsers.splice(index, 1);
+            } else {
+                this.selectedUsers.push(userId);
+            }
+        },
+
+        clearSelection() {
+            this.selectedUsers = [];
+        },
+
+        // Bulk actions
+        async bulkActivate() {
+            if (!confirm(`Activate ${this.selectedUsers.length} selected users?`)) return;
+            this.showSuccess('Users activated successfully');
+            this.clearSelection();
+            await this.loadUsers();
+        },
+
+        async bulkDeactivate() {
+            if (!confirm(`Deactivate ${this.selectedUsers.length} selected users?`)) return;
+            this.showSuccess('Users deactivated successfully');
+            this.clearSelection();
+            await this.loadUsers();
+        },
+
+        async bulkDelete() {
+            if (!confirm(`Delete ${this.selectedUsers.length} selected users? This action cannot be undone.`)) return;
+            this.showSuccess('Users deleted successfully');
+            this.clearSelection();
+            await this.loadUsers();
+        },
+
+        // Filter methods
+        clearFilters() {
+            this.filters = {
+                search: '',
+                role: '',
+                access_level: '',
+                is_active: '',
+                sort_by: 'created_at',
+                sort_order: 'desc',
+                per_page: 25
+            };
+            this.loadUsers();
+        },
+
+        async exportUsers() {
+            try {
+                const params = new URLSearchParams(this.filters);
+                const response = await fetch(`/users/export?${params}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'users_export.xlsx';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                }
+            } catch (error) {
+                this.showError('Failed to export users');
+            }
+        },
+
+        // Pagination
+        changePage(page) {
+            if (page >= 1 && page <= this.pagination.last_page) {
+                this.loadUsers(page);
+            }
+        },
+
+        get visiblePages() {
+            const current = this.pagination.current_page || 1;
+            const last = this.pagination.last_page || 1;
+            const pages = [];
+
+            for (let i = Math.max(1, current - 2); i <= Math.min(last, current + 2); i++) {
+                pages.push(i);
+            }
+
+            return pages;
+        },
+
+        // Utility methods
+        getUserInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').toUpperCase();
+        },
+
+        getUserAvatarColor(name) {
+            const colors = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+                'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)'
+            ];
+            const index = name.charCodeAt(0) % colors.length;
+            return colors[index];
+        },
+
+        formatRole(role) {
+            return role.split('_').map(word =>
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+        },
+
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        },
+
+        // Notification methods
+        showSuccess(message) {
+            alert('SUCCESS: ' + message);
+        },
+
+        showError(message) {
+            alert('ERROR: ' + message);
         }
     }
+}
 </script>
 @endpush
 @endsection

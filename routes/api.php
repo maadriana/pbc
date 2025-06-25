@@ -35,7 +35,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // 🔐 Protected routes
-    Route::middleware(['auth:sanctum', 'pbc.permission'])->group(function () {
+    Route::middleware(['auth:web', 'pbc.permission'])->group(function () {
 
         // 📊 Dashboard
         Route::prefix('dashboard')->group(function () {
@@ -44,19 +44,14 @@ Route::prefix('v1')->group(function () {
             Route::get('recent-activity', [DashboardController::class, 'recentActivity']);
         });
 
-        // 👥 User Management (with named routes)
-        Route::apiResource('users', UserController::class)->names([
-            'index' => 'pbc.users.index',
-            'store' => 'pbc.users.store',
-            'show' => 'pbc.users.show',
-            'update' => 'pbc.users.update',
-            'destroy' => 'pbc.users.destroy',
-        ]);
-
+        // 👥 User Management - Full API Resource
+        Route::apiResource('users', UserController::class);
         Route::prefix('users/{user}')->group(function () {
-            Route::get('permissions', [UserController::class, 'permissions'])->name('pbc.users.permissions');
-            Route::put('permissions', [UserController::class, 'updatePermissions'])->name('pbc.users.updatePermissions');
+            Route::get('permissions', [UserController::class, 'permissions']);
+            Route::put('permissions', [UserController::class, 'updatePermissions']);
         });
+        // Export route
+        Route::get('users/export', [UserController::class, 'export'])->name('users.export');
 
         // 🏢 Client Management
         Route::apiResource('clients', ClientController::class);
@@ -117,6 +112,7 @@ Route::prefix('v1')->group(function () {
                 'success' => true,
                 'message' => 'API is working',
                 'timestamp' => now(),
+                'user' => auth()->user() ? auth()->user()->name : 'Not authenticated',
                 'laravel_version' => app()->version()
             ]);
         });

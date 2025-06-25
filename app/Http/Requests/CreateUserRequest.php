@@ -9,7 +9,8 @@ class CreateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->hasPermission('create_user');
+        // FIXED: Check if user has permission properly
+        return $this->user() && $this->user()->hasPermission('create_user');
     }
 
     public function rules(): array
@@ -18,7 +19,8 @@ class CreateUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'entity' => ['required', 'string', 'max:255'],
+            'password_confirmation' => ['required', 'same:password'], // Add confirmation
+            'entity' => ['nullable', 'string', 'max:255'], // Make entity optional
             'role' => ['required', Rule::in(['system_admin', 'engagement_partner', 'manager', 'associate', 'guest'])],
             'access_level' => ['required', 'integer', 'between:1,5'],
             'contact_number' => ['nullable', 'string', 'max:20'],
@@ -27,4 +29,17 @@ class CreateUserRequest extends FormRequest
             'permissions.*' => ['string'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Full name is required',
+            'email.unique' => 'This email address is already taken',
+            'password.min' => 'Password must be at least 8 characters',
+            'password_confirmation.same' => 'Password confirmation does not match',
+            'role.in' => 'Please select a valid role',
+            'access_level.between' => 'Access level must be between 1 and 5',
+        ];
+    }
 }
+
