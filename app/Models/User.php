@@ -132,16 +132,56 @@ class User extends Authenticatable
         return $query->where('access_level', $level);
     }
 
-    // Helper methods
-    public function hasPermission($permission, $resource = null)
-    {
-        return $this->permissions()
-            ->where('permission', $permission)
-            ->when($resource, function ($query) use ($resource) {
-                return $query->where('resource', $resource);
-            })
-            ->exists();
+    // Helper methods - UPDATED
+   // Update your hasPermission method in User.php to include the manage_categories permission:
+
+public function hasPermission($permission, $resource = null)
+{
+    // If system admin, grant all permissions
+    if ($this->isSystemAdmin()) {
+        return true;
     }
+
+    // Check database permissions first (if you have a permissions table)
+    $hasDbPermission = $this->permissions()
+        ->where('permission', $permission)
+        ->when($resource, function ($query) use ($resource) {
+            return $query->where('resource', $resource);
+        })
+        ->exists();
+
+    if ($hasDbPermission) {
+        return true;
+    }
+
+    // Fallback to role-based permissions for PBC system
+    $rolePermissions = [
+        'engagement_partner' => [
+            'view_client', 'create_client', 'edit_client', 'delete_client',
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'approve_document', 'send_reminder', 'view_audit_log',
+            'manage_categories'
+        ],
+        'manager' => [
+            'view_client', 'create_client', 'edit_client',
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'approve_document', 'send_reminder',
+            'manage_categories'
+        ],
+        'associate' => [
+            'view_project', 'create_project', 'edit_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'approve_document', 'send_reminder'
+        ],
+        'guest' => [
+            'view_pbc_request', 'edit_pbc_request', 'upload_document'
+        ],
+    ];
+
+    return in_array($permission, $rolePermissions[$this->role] ?? []);
+}
 
     public function isSystemAdmin()
     {
@@ -187,27 +227,28 @@ class User extends Authenticatable
     {
         return ucwords(str_replace('_', ' ', $this->role));
     }
+
     public function unreadNotifications()
-{
-    return $this->morphMany('Illuminate\Notifications\DatabaseNotification', 'notifiable')
-                ->whereNull('read_at');
-}
-public function getAllPermissionsAttribute()
-{
-    // If system admin, return all permissions
-    if ($this->isSystemAdmin()) {
-        return collect([
-            'view_user', 'create_user', 'edit_user', 'delete_user',
-            'view_client', 'create_client', 'edit_client', 'delete_client',
-            'view_project', 'create_project', 'edit_project', 'delete_project',
-            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
-            'upload_document', 'approve_document', 'delete_document',
-            'send_reminder', 'view_audit_log', 'export_reports',
-            'manage_settings', 'manage_permissions'
-        ]);
+    {
+        return $this->morphMany('Illuminate\Notifications\DatabaseNotification', 'notifiable')
+                    ->whereNull('read_at');
     }
 
-    return $this->permissions ? $this->permissions->pluck('permission') : collect();
-}
-}
+    public function getAllPermissionsAttribute()
+    {
+        // If system admin, return all permissions
+        if ($this->isSystemAdmin()) {
+            return collect([
+                'view_user', 'create_user', 'edit_user', 'delete_user',
+                'view_client', 'create_client', 'edit_client', 'delete_client',
+                'view_project', 'create_project', 'edit_project', 'delete_project',
+                'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+                'upload_document', 'approve_document', 'delete_document',
+                'send_reminder', 'view_audit_log', 'export_reports',
+                'manage_settings', 'manage_permissions'
+            ]);
+        }
 
+        return $this->permissions ? $this->permissions->pluck('permission') : collect();
+    }
+}

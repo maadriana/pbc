@@ -96,7 +96,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::put('pbc-reminders/{reminder}/mark-read', [PbcReminderController::class, 'markAsRead']);
 
-        // 📂 PBC Categories
+         // 📂 PBC Categories
         Route::apiResource('pbc-categories', PbcCategoryController::class);
 
         // 📈 Reports

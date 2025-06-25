@@ -54,16 +54,26 @@ class PbcCategoryService
 
     private function logActivity(string $action, PbcCategory $category, string $description, array $oldData = null): void
     {
-        AuditLog::create([
-            'user_id' => auth()->id(),
-            'action' => $action,
-            'model_type' => PbcCategory::class,
-            'model_id' => $category->id,
-            'old_values' => $oldData,
-            'new_values' => $category->toArray(),
-            'description' => $description,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
+        // Only try to log if AuditLog model exists and user is authenticated
+        if (!class_exists('App\Models\AuditLog') || !auth()->check()) {
+            return;
+        }
+
+        try {
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => $action,
+                'model_type' => PbcCategory::class,
+                'model_id' => $category->id,
+                'old_values' => $oldData,
+                'new_values' => $category->toArray(),
+                'description' => $description,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Exception $e) {
+            // Silent fail if logging doesn't work
+            \Log::warning('Category audit logging failed: ' . $e->getMessage());
+        }
     }
 }

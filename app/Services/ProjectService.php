@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Project;
 use App\Models\PbcRequest;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class ProjectService
 {
@@ -39,27 +40,83 @@ class ProjectService
 
     public function createProject(array $projectData): Project
     {
-        $project = Project::create($projectData);
+        DB::beginTransaction();
 
-        // Create team assignments
-        $this->createTeamAssignments($project);
+        try {
+            $project = Project::create($projectData);
 
-        return $project->load(['client', 'engagementPartner', 'manager', 'associate1', 'associate2']);
+            // Create team assignments
+            $this->createTeamAssignments($project);
+
+            DB::commit();
+            return $project->load(['client', 'engagementPartner', 'manager', 'associate1', 'associate2']);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
+        }
     }
 
     public function updateProject(Project $project, array $projectData): Project
     {
-        $project->update($projectData);
+        DB::beginTransaction();
 
-        // Update team assignments if team members changed
-        $this->updateTeamAssignments($project);
+        try {
+            // Store original team assignments for comparison
+            $originalTeam = [
+                'engagement_partner_id' => $project->engagement_partner_id,
+                'manager_id' => $project->manager_id,
+                'associate_1_id' => $project->associate_1_id,
+                'associate_2_id' => $project->associate_2_id,
+            ];
 
-        return $project->fresh(['client', 'engagementPartner', 'manager', 'associate1', 'associate2']);
+            // Update project data
+            $project->update($projectData);
+
+            // Check if team assignments changed
+            $newTeam = [
+                'engagement_partner_id' => $project->engagement_partner_id,
+                'manager_id' => $project->manager_id,
+                'associate_1_id' => $project->associate_1_id,
+                'associate_2_id' => $project->associate_2_id,
+            ];
+
+            if ($originalTeam !== $newTeam) {
+                $this->updateTeamAssignments($project);
+            }
+
+            DB::commit();
+            return $project->fresh(['client', 'engagementPartner', 'manager', 'associate1', 'associate2']);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            \Log::error('ProjectService updateProject failed: ' . $e->getMessage(), [
+                'project_id' => $project->id,
+                'projectData' => $projectData,
+                'exception' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     public function deleteProject(Project $project): bool
     {
-        return $project->delete();
+        DB::beginTransaction();
+
+        try {
+            // Deactivate team assignments first
+            $project->teamAssignments()->update(['is_active' => false, 'end_date' => now()]);
+
+            // Soft delete the project
+            $result = $project->delete();
+
+            DB::commit();
+            return $result;
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
+        }
     }
 
     public function getProjectPbcRequests(Project $project): array
@@ -149,8 +206,8 @@ class ProjectService
 
     private function updateTeamAssignments(Project $project): void
     {
-        // Deactivate existing assignments
-        $project->teamAssignments()->update(['is_active' => false, 'end_date' => now()]);
+        // FIXED: Delete existing assignments completely to avoid duplicates
+        \App\Models\ProjectTeamAssignment::where('project_id', $project->id)->delete();
 
         // Create new assignments
         $this->createTeamAssignments($project);

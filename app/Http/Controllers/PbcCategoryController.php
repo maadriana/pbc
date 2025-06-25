@@ -28,7 +28,10 @@ class PbcCategoryController extends BaseController
     public function store(Request $request)
     {
         try {
-            $this->authorize('manage_categories');
+            // Use custom permission check instead of $this->authorize()
+            if (!auth()->user()->hasPermission('manage_categories')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $request->validate([
                 'name' => 'required|string|max:255',
@@ -58,7 +61,10 @@ class PbcCategoryController extends BaseController
     public function update(Request $request, PbcCategory $category)
     {
         try {
-            $this->authorize('manage_categories');
+            // Use custom permission check instead of $this->authorize()
+            if (!auth()->user()->hasPermission('manage_categories')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $request->validate([
                 'name' => 'sometimes|required|string|max:255',
@@ -78,7 +84,10 @@ class PbcCategoryController extends BaseController
     public function destroy(PbcCategory $category)
     {
         try {
-            $this->authorize('manage_categories');
+            // Use custom permission check instead of $this->authorize()
+            if (!auth()->user()->hasPermission('manage_categories')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $this->pbcCategoryService->deleteCategory($category);
             return $this->success(null, 'Category deleted successfully');

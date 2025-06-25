@@ -20,20 +20,43 @@ class PbcRequestController extends BaseController
     public function index(Request $request)
     {
         try {
-            $this->authorize('view_pbc_request');
+            // Use custom permission check instead of $this->authorize()
+            if (!auth()->user()->hasPermission('view_pbc_request')) {
+                if ($request->expectsJson()) {
+                    return $this->error('Unauthorized access', null, 403);
+                }
+                abort(403, 'Unauthorized access');
+            }
 
             $pbcRequests = $this->pbcRequestService->getFilteredPbcRequests($request->all(), $request->user());
-            return $this->paginated($pbcRequests, 'PBC requests retrieved successfully');
+
+            // For AJAX/API requests, return JSON
+            if ($request->expectsJson()) {
+                return $this->paginated($pbcRequests, 'PBC requests retrieved successfully');
+            }
+
+            // For web requests, return the view
+            return view('pbc-requests.index');
+
         } catch (\Exception $e) {
-            return $this->error('Failed to retrieve PBC requests', $e->getMessage(), 500);
+            \Log::error('Failed to retrieve PBC requests: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'request' => $request->all(),
+                'exception' => $e->getTraceAsString()
+            ]);
+
+            if ($request->expectsJson()) {
+                return $this->error('Failed to retrieve PBC requests', $e->getMessage(), 500);
+            }
+
+            return back()->withErrors(['error' => 'Failed to retrieve PBC requests: ' . $e->getMessage()]);
         }
     }
 
     public function store(CreatePbcRequestRequest $request)
     {
         try {
-            $this->authorize('create_pbc_request');
-
+            // Permission check is already in CreatePbcRequestRequest
             $pbcRequest = $this->pbcRequestService->createPbcRequest($request->validated(), $request->user());
             return $this->success($pbcRequest, 'PBC request created successfully', 201);
         } catch (\Exception $e) {
@@ -44,7 +67,9 @@ class PbcRequestController extends BaseController
     public function show(PbcRequest $pbcRequest)
     {
         try {
-            $this->authorize('view_pbc_request');
+            if (!auth()->user()->hasPermission('view_pbc_request')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $pbcRequest->load([
                 'project.client',
@@ -64,8 +89,7 @@ class PbcRequestController extends BaseController
     public function update(UpdatePbcRequestRequest $request, PbcRequest $pbcRequest)
     {
         try {
-            $this->authorize('edit_pbc_request');
-
+            // Permission check is already in UpdatePbcRequestRequest
             $updatedPbcRequest = $this->pbcRequestService->updatePbcRequest($pbcRequest, $request->validated(), $request->user());
             return $this->success($updatedPbcRequest, 'PBC request updated successfully');
         } catch (\Exception $e) {
@@ -76,7 +100,9 @@ class PbcRequestController extends BaseController
     public function destroy(PbcRequest $pbcRequest)
     {
         try {
-            $this->authorize('delete_pbc_request');
+            if (!auth()->user()->hasPermission('delete_pbc_request')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $this->pbcRequestService->deletePbcRequest($pbcRequest);
             return $this->success(null, 'PBC request deleted successfully');
@@ -88,7 +114,9 @@ class PbcRequestController extends BaseController
     public function complete(PbcRequest $pbcRequest, Request $request)
     {
         try {
-            $this->authorize('edit_pbc_request');
+            if (!auth()->user()->hasPermission('edit_pbc_request')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $this->pbcRequestService->completePbcRequest($pbcRequest, $request->user());
             return $this->success(null, 'PBC request marked as completed');
@@ -100,7 +128,9 @@ class PbcRequestController extends BaseController
     public function reopen(PbcRequest $pbcRequest, Request $request)
     {
         try {
-            $this->authorize('edit_pbc_request');
+            if (!auth()->user()->hasPermission('edit_pbc_request')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $this->pbcRequestService->reopenPbcRequest($pbcRequest, $request->user());
             return $this->success(null, 'PBC request reopened');
@@ -112,7 +142,9 @@ class PbcRequestController extends BaseController
     public function bulkUpdate(Request $request)
     {
         try {
-            $this->authorize('edit_pbc_request');
+            if (!auth()->user()->hasPermission('edit_pbc_request')) {
+                return $this->error('Unauthorized access', null, 403);
+            }
 
             $request->validate([
                 'pbc_request_ids' => 'required|array',
