@@ -156,6 +156,7 @@ class PbcDocumentService
 
         $cloudUrl = null;
         $cloudPublicId = null;
+        $cloudProvider = 'local';
 
         // Try uploading to Cloudinary first
         if ($this->cloudinaryService && $this->cloudinaryService->isConfigured()) {
@@ -168,6 +169,7 @@ class PbcDocumentService
             if ($cloudResult['success']) {
                 $cloudUrl = $cloudResult['secure_url'];
                 $cloudPublicId = $cloudResult['public_id'];
+                $cloudProvider = 'cloudinary';
                 \Log::info('File uploaded to Cloudinary: ' . $cloudPublicId);
             } else {
                 \Log::warning('Cloudinary upload failed: ' . $cloudResult['error']);
@@ -176,6 +178,16 @@ class PbcDocumentService
 
         // Always store locally as backup
         $file->storeAs('pbc-documents/' . date('Y/m'), $fileName, 'public');
+
+        // Prepare metadata
+        $metadata = [
+            'original_size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+            'upload_method' => 'web_interface',
+            'cloud_backup' => !empty($cloudUrl),
+            'upload_ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ];
 
         // Create document record
         $document = PbcDocument::create([
@@ -191,8 +203,12 @@ class PbcDocumentService
             'comments' => $comments,
             'version' => $version,
             'is_latest_version' => true,
+            // NEW CLOUD FIELDS
             'cloud_url' => $cloudUrl,
             'cloud_public_id' => $cloudPublicId,
+            'cloud_provider' => $cloudProvider,
+            'metadata' => $metadata,
+            'last_accessed_at' => now(),
         ]);
 
         // Mark previous versions as not latest
@@ -298,6 +314,20 @@ class PbcDocumentService
         $approvedDocuments = $query->where('status', 'approved')->count();
         $rejectedDocuments = $query->where('status', 'rejected')->count();
 
+        // Additional statistics
+        $cloudDocuments = $query->whereNotNull('cloud_url')->count();
+        $recentUploads = $query->where('created_at', '>=', now()->subDays(7))->count();
+
+        // File type distribution
+        $fileTypeStats = $query->selectRaw('file_type, COUNT(*) as count')
+            ->groupBy('file_type')
+            ->pluck('count', 'file_type')
+            ->toArray();
+
+        // Storage distribution
+        $cloudStorage = $query->whereNotNull('cloud_url')->sum('file_size');
+        $localStorage = $totalSize; // All files have local backup
+
         return [
             'total_documents' => $totalDocuments,
             'total_size' => $totalSize,
@@ -306,11 +336,24 @@ class PbcDocumentService
             'approved_documents' => $approvedDocuments,
             'rejected_documents' => $rejectedDocuments,
             'storage_usage_mb' => round($totalSize / 1024 / 1024, 2),
+
+            // NEW ENHANCED STATS
+            'cloud_documents' => $cloudDocuments,
+            'local_only_documents' => $totalDocuments - $cloudDocuments,
+            'recent_uploads_count' => $recentUploads,
+            'cloud_storage_used' => $cloudStorage,
+            'cloud_storage_formatted' => $this->formatFileSize($cloudStorage),
+            'local_storage_used' => $localStorage,
+            'local_storage_formatted' => $this->formatFileSize($localStorage),
+            'file_types' => $fileTypeStats,
+            'storage_efficiency' => $cloudDocuments > 0 ? round(($cloudDocuments / $totalDocuments) * 100, 1) : 0,
         ];
     }
 
     private function formatFileSize(int $bytes): string
     {
+        if ($bytes === 0) return '0 B';
+
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
 
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
@@ -318,5 +361,83 @@ class PbcDocumentService
         }
 
         return round($bytes, 2) . ' ' . $units[$i];
+    }
+
+    /**
+     * Update document access timestamp
+     */
+    public function updateLastAccessed(PbcDocument $document): void
+    {
+        try {
+            $document->update(['last_accessed_at' => now()]);
+        } catch (\Exception $e) {
+            \Log::warning('Could not update last accessed timestamp: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get document storage info
+     */
+    public function getDocumentStorageInfo(PbcDocument $document): array
+    {
+        return [
+            'has_cloud_backup' => !empty($document->cloud_url),
+            'has_local_backup' => Storage::exists($document->file_path),
+            'cloud_provider' => $document->cloud_provider ?? 'local',
+            'storage_redundancy' => !empty($document->cloud_url) && Storage::exists($document->file_path) ? 'full' : 'partial',
+            'primary_storage' => !empty($document->cloud_url) ? 'cloud' : 'local',
+        ];
+    }
+
+    /**
+     * Migrate existing documents to cloud (utility function)
+     */
+    public function migrateToCloud(PbcDocument $document): bool
+    {
+        if (!empty($document->cloud_url) || !$this->cloudinaryService || !$this->cloudinaryService->isConfigured()) {
+            return false;
+        }
+
+        try {
+            $filePath = Storage::path($document->file_path);
+
+            if (!file_exists($filePath)) {
+                return false;
+            }
+
+            // Create a temporary uploaded file object
+            $uploadedFile = new \Illuminate\Http\UploadedFile(
+                $filePath,
+                $document->original_name,
+                $document->mime_type,
+                null,
+                true
+            );
+
+            $cloudResult = $this->cloudinaryService->uploadFile($uploadedFile, [
+                'folder' => 'pbc-documents',
+                'public_id' => 'pbc-documents/migrated/' . pathinfo($document->original_name, PATHINFO_FILENAME) . '_' . $document->id,
+                'tags' => ['pbc', 'migrated', 'request_' . $document->pbc_request_id]
+            ]);
+
+            if ($cloudResult['success']) {
+                $document->update([
+                    'cloud_url' => $cloudResult['secure_url'],
+                    'cloud_public_id' => $cloudResult['public_id'],
+                    'cloud_provider' => 'cloudinary',
+                ]);
+
+                \Log::info('Document migrated to cloud: ' . $document->original_name);
+                return true;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            \Log::error('Failed to migrate document to cloud: ' . $e->getMessage(), [
+                'document_id' => $document->id,
+                'filename' => $document->original_name
+            ]);
+            return false;
+        }
     }
 }

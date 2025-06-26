@@ -7,6 +7,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\PbcRequestController;
+use App\Http\Controllers\PbcDocumentController;
+use App\Http\Controllers\MessageController; // ADD THIS MISSING IMPORT
 
 /*
 |--------------------------------------------------------------------------
@@ -42,9 +44,14 @@ Route::post('logout', [AuthController::class, 'logout'])->name('logout')->middle
 
 // Protected routes
 Route::middleware(['auth:web'])->group(function () {
-
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Messages - ADD THIS
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+
+    // Upload Center
+    Route::get('/upload-center', [PbcDocumentController::class, 'uploadCenterPage'])->name('upload-center');
 
     // User Management - Full Resource Routes
     Route::resource('users', UserController::class)->names([
@@ -95,7 +102,7 @@ Route::middleware(['auth:web'])->group(function () {
     Route::put('projects/{project}/update-progress', [ProjectController::class, 'updateProgress'])->name('projects.update-progress');
     Route::get('projects/export', [ProjectController::class, 'export'])->name('projects.export');
 
-        // PBC Request Management - Full Resource Routes
+    // PBC Request Management - Full Resource Routes
     Route::resource('pbc-requests', PbcRequestController::class)->names([
         'index' => 'pbc-requests.index',
         'create' => 'pbc-requests.create',
@@ -110,5 +117,14 @@ Route::middleware(['auth:web'])->group(function () {
     Route::put('pbc-requests/{pbcRequest}/complete', [PbcRequestController::class, 'complete'])->name('pbc-requests.complete');
     Route::put('pbc-requests/{pbcRequest}/reopen', [PbcRequestController::class, 'reopen'])->name('pbc-requests.reopen');
     Route::put('pbc-requests/bulk-update', [PbcRequestController::class, 'bulkUpdate'])->name('pbc-requests.bulk-update');
-
 });
+
+// Test API route - MOVE OUTSIDE OF PROTECTED GROUP
+Route::get('/test-api', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'API is working',
+        'timestamp' => now()
+    ]);
+});
+

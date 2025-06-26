@@ -26,7 +26,7 @@ class PbcDocument extends Model
     'reviewed_at',
     'version',
     'is_latest_version',
-    // NEW FIELDS
+    // NEW CLOUD FIELDS
     'cloud_url',
     'cloud_public_id',
     'cloud_provider',
@@ -34,11 +34,13 @@ class PbcDocument extends Model
     'last_accessed_at',
 ];
 
-    protected $casts = [
-        'file_size' => 'integer',
-        'reviewed_at' => 'datetime',
-        'is_latest_version' => 'boolean',
-    ];
+protected $casts = [
+    'file_size' => 'integer',
+    'reviewed_at' => 'datetime',
+    'last_accessed_at' => 'datetime',
+    'is_latest_version' => 'boolean',
+    'metadata' => 'array',
+];
 
     // Relationships
     public function pbcRequest()

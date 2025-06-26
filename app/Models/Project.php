@@ -31,6 +31,18 @@ class Project extends Model
         'progress_percentage' => 'decimal:2',
     ];
 
+    // Add this accessor for display name
+    public function getDisplayNameAttribute()
+    {
+        return ucfirst($this->engagement_type) . ' - ' . $this->engagement_period->format('Y');
+    }
+
+    // Add this accessor for compatibility
+    public function getNameAttribute()
+    {
+        return $this->display_name;
+    }
+
     // Relationships
     public function client()
     {

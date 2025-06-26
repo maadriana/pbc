@@ -74,12 +74,12 @@
             <div class="nav-section-title">Documents</div>
 
             {{-- Upload Center - All users have upload_document permission --}}
-            @if(auth()->user()->hasPermission('upload_document'))
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                <span class="nav-text">Upload Center</span>
-            </a>
-            @endif
+@if(auth()->user()->hasPermission('upload_document'))
+<a href="{{ route('upload-center') }}" class="nav-item {{ request()->routeIs('upload-center') ? 'active' : '' }}">
+    <div class="nav-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+    <span class="nav-text">Upload Center</span>
+</a>
+@endif
 
             {{-- Document Review - Those who can approve documents --}}
             @if(auth()->user()->hasPermission('approve_document'))
@@ -110,19 +110,12 @@
         <div class="nav-section">
             <div class="nav-section-title">Communication</div>
 
-            {{-- Messages - All users can access messages --}}
-            @if(auth()->user()->hasPermission('view_messages'))
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-comments"></i></div>
-                <span class="nav-text">Messages</span>
-                @php
-                    $unreadMessages = auth()->user()->unreadNotifications->count();
-                @endphp
-                @if($unreadMessages > 0)
-                    <span class="nav-badge">{{ $unreadMessages }}</span>
-                @endif
-            </a>
-            @endif
+{{-- Messages --}}
+    <a href="{{ route('messages') }}" class="nav-item {{ request()->routeIs('messages') ? 'active' : '' }}">
+        <div class="nav-icon"><i class="fas fa-comments"></i></div>
+        <span class="nav-text">Messages</span>
+        {{-- We'll add unread count later once messages are flowing --}}
+    </a>
 
             {{-- Reminders - Show for users who can send reminders --}}
             @if(auth()->user()->hasPermission('send_reminder'))

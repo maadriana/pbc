@@ -7,9 +7,11 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
-    /**
-     * Define the application's command schedule.
-     */
+    protected $commands = [
+        Commands\CreateMessageSystem::class,
+        Commands\ClearMessageCache::class,
+    ];
+
     protected function schedule(Schedule $schedule): void
     {
         // PBC SCHEDULED COMMANDS
@@ -24,6 +26,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('pbc:cleanup-logs')
                  ->monthly()
                  ->appendOutputTo(storage_path('logs/pbc-cleanup.log'));
+
+        $schedule->command('pbc:clear-message-cache')->daily();
     }
 
     /**

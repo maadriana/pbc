@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             SettingsSeeder::class,
             UserPermissionSeeder::class,
             SamplePbcRequestSeeder::class,
+            PbcDocumentSeeder::class,
         ]);
     }
 }

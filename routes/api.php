@@ -13,6 +13,7 @@ use App\Http\Controllers\PbcCommentController;
 use App\Http\Controllers\PbcReminderController;
 use App\Http\Controllers\PbcCategoryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\MessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,7 +36,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // 🔐 Protected routes
-    Route::middleware(['auth:web', 'pbc.permission'])->group(function () {
+    Route::middleware(['auth:web'])->group(function () {
 
         // 📊 Dashboard
         Route::prefix('dashboard')->group(function () {
@@ -74,26 +75,22 @@ Route::prefix('v1')->group(function () {
             Route::put('reopen', [PbcRequestController::class, 'reopen']);
         });
 
-        // 📎 PBC Document Management - UPDATED FOR UPLOAD CENTER
-        Route::apiResource('pbc-documents', PbcDocumentController::class)->except(['update']);
+        // PBC Document Management - FIXED ROUTES
+        Route::get('pbc-documents-stats', [PbcDocumentController::class, 'getStats']);
+        Route::apiResource('pbc-documents', PbcDocumentController::class);
 
-        // Document Statistics (must be before parameterized routes)
-        Route::get('pbc-documents-stats', [PbcDocumentController::class, 'getStats'])->name('pbc-documents.stats');
-
-        // Bulk Operations
         Route::prefix('pbc-documents')->group(function () {
-            Route::post('bulk-approve', [PbcDocumentController::class, 'bulkApprove'])->name('pbc-documents.bulk-approve');
-            Route::post('bulk-reject', [PbcDocumentController::class, 'bulkReject'])->name('pbc-documents.bulk-reject');
-            Route::post('bulk-download', [PbcDocumentController::class, 'bulkDownload'])->name('pbc-documents.bulk-download');
-            Route::post('bulk-delete', [PbcDocumentController::class, 'bulkDelete'])->name('pbc-documents.bulk-delete');
+            Route::post('bulk-approve', [PbcDocumentController::class, 'bulkApprove']);
+            Route::post('bulk-reject', [PbcDocumentController::class, 'bulkReject']);
+            Route::post('bulk-download', [PbcDocumentController::class, 'bulkDownload']);
+            Route::post('bulk-delete', [PbcDocumentController::class, 'bulkDelete']);
         });
 
-        // Individual Document Operations
         Route::prefix('pbc-documents/{document}')->group(function () {
-            Route::get('download', [PbcDocumentController::class, 'download'])->name('pbc-documents.download');
-            Route::get('preview', [PbcDocumentController::class, 'preview'])->name('pbc-documents.preview');
-            Route::post('approve', [PbcDocumentController::class, 'approve'])->name('pbc-documents.approve');
-            Route::post('reject', [PbcDocumentController::class, 'reject'])->name('pbc-documents.reject');
+            Route::get('download', [PbcDocumentController::class, 'download']);
+            Route::get('preview', [PbcDocumentController::class, 'preview']);
+            Route::post('approve', [PbcDocumentController::class, 'approve']);
+            Route::post('reject', [PbcDocumentController::class, 'reject']);
         });
 
         // 💬 Comments
@@ -109,7 +106,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::put('pbc-reminders/{reminder}/mark-read', [PbcReminderController::class, 'markAsRead']);
 
-         // 📂 PBC Categories
+        // 📂 PBC Categories
         Route::apiResource('pbc-categories', PbcCategoryController::class);
 
         // 📈 Reports
@@ -119,15 +116,33 @@ Route::prefix('v1')->group(function () {
             Route::get('audit-trail', [ReportController::class, 'auditTrail']);
         });
 
-        // 🧪 API health check
-        Route::get('/test', function () {
-            return response()->json([
-                'success' => true,
-                'message' => 'API is working',
-                'timestamp' => now(),
-                'user' => auth()->user() ? auth()->user()->name : 'Not authenticated',
-                'laravel_version' => app()->version()
-            ]);
+        // 💬 Messages/Communication - COMPLETE ROUTES
+        Route::prefix('messages')->group(function () {
+            // Conversations
+            Route::get('conversations', [MessageController::class, 'getConversations']);
+            Route::post('conversations', [MessageController::class, 'createConversation']);
+            Route::get('conversations/{conversation}', [MessageController::class, 'getConversation']);
+            Route::put('conversations/{conversation}/status', [MessageController::class, 'updateConversationStatus']);
+            Route::put('conversations/{conversation}/read-all', [MessageController::class, 'markConversationAsRead']);
+
+            // Messages
+            Route::get('conversations/{conversation}/messages', [MessageController::class, 'getMessages']);
+            Route::post('send', [MessageController::class, 'sendMessage']);
+            Route::put('messages/{message}/read', [MessageController::class, 'markAsRead']);
+
+            // Advanced Features
+            Route::get('conversations/{conversation}/stats', [MessageController::class, 'getConversationStats']);
+            Route::get('conversations/{conversation}/search', [MessageController::class, 'searchMessages']);
+            Route::get('conversations/{conversation}/attachments', [MessageController::class, 'getConversationAttachments']);
+            Route::get('conversations/{conversation}/messages/{message}/attachments/{attachment}/download', [MessageController::class, 'downloadAttachment']);
+
+            // Participant Management
+            Route::post('conversations/{conversation}/participants', [MessageController::class, 'addParticipant']);
+            Route::delete('conversations/{conversation}/participants/{user}', [MessageController::class, 'removeParticipant']);
+
+            // Utilities
+            Route::get('unread-count', [MessageController::class, 'getUnreadCount']);
+            Route::get('available-users', [MessageController::class, 'getAvailableUsers']);
         });
 
     }); // 🔐 End of protected routes

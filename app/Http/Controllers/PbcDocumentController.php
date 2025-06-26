@@ -594,4 +594,8 @@ class PbcDocumentController extends BaseController
             return $this->error('Failed to cleanup temp files', $e->getMessage(), 500);
         }
     }
+    public function uploadCenterPage()
+{
+    return view('pbc-documents.index');
+}
 }

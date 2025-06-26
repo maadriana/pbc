@@ -133,7 +133,6 @@ class User extends Authenticatable
     }
 
     // Helper methods - UPDATED
-   // Update your hasPermission method in User.php to include the manage_categories permission:
 
 public function hasPermission($permission, $resource = null)
 {
@@ -161,22 +160,22 @@ public function hasPermission($permission, $resource = null)
             'view_project', 'create_project', 'edit_project', 'delete_project',
             'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
             'upload_document', 'approve_document', 'send_reminder', 'view_audit_log',
-            'manage_categories'
+            'manage_categories', 'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
         ],
         'manager' => [
             'view_client', 'create_client', 'edit_client',
             'view_project', 'create_project', 'edit_project', 'delete_project',
             'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
             'upload_document', 'approve_document', 'send_reminder',
-            'manage_categories'
+            'manage_categories', 'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
         ],
         'associate' => [
             'view_project', 'create_project', 'edit_project',
             'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
-            'upload_document', 'approve_document', 'send_reminder'
+            'upload_document', 'approve_document', 'send_reminder', 'send_messages', 'view_messages', 'receive_notifications'
         ],
         'guest' => [
-            'view_pbc_request', 'edit_pbc_request', 'upload_document'
+            'view_pbc_request', 'edit_pbc_request', 'upload_document', 'view_messages', 'receive_notifications'
         ],
     ];
 
