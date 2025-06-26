@@ -12,21 +12,27 @@ class PbcDocument extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'pbc_request_id',
-        'original_name',
-        'file_name',
-        'file_path',
-        'file_type',
-        'file_size',
-        'mime_type',
-        'uploaded_by',
-        'status',
-        'comments',
-        'reviewed_by',
-        'reviewed_at',
-        'version',
-        'is_latest_version',
-    ];
+    'pbc_request_id',
+    'original_name',
+    'file_name',
+    'file_path',
+    'file_type',
+    'file_size',
+    'mime_type',
+    'uploaded_by',
+    'status',
+    'comments',
+    'reviewed_by',
+    'reviewed_at',
+    'version',
+    'is_latest_version',
+    // NEW FIELDS
+    'cloud_url',
+    'cloud_public_id',
+    'cloud_provider',
+    'metadata',
+    'last_accessed_at',
+];
 
     protected $casts = [
         'file_size' => 'integer',

@@ -41,7 +41,7 @@ Route::middleware('guest')->group(function () {
 Route::post('logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Protected routes
-Route::middleware(['auth', 'pbc.permission'])->group(function () {
+Route::middleware(['auth:web'])->group(function () {
 
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -110,8 +110,5 @@ Route::middleware(['auth', 'pbc.permission'])->group(function () {
     Route::put('pbc-requests/{pbcRequest}/complete', [PbcRequestController::class, 'complete'])->name('pbc-requests.complete');
     Route::put('pbc-requests/{pbcRequest}/reopen', [PbcRequestController::class, 'reopen'])->name('pbc-requests.reopen');
     Route::put('pbc-requests/bulk-update', [PbcRequestController::class, 'bulkUpdate'])->name('pbc-requests.bulk-update');
-    // Future routes for other pages - Keep these as view-only for now
-    Route::get('pbc-requests', function () {
-        return view('pbc-requests.index');
-    })->name('pbc-requests.index');
+
 });

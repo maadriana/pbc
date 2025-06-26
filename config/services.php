@@ -34,5 +34,13 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'cloudinary' => [
+        'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+        'api_key' => env('CLOUDINARY_API_KEY'),
+        'api_secret' => env('CLOUDINARY_API_SECRET'),
+        'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'),
+        'folder' => env('CLOUDINARY_FOLDER', 'pbc-documents'),
+        'auto_backup' => env('CLOUDINARY_AUTO_BACKUP', true), // Keep local copy as backup
+    ],
 
 ];

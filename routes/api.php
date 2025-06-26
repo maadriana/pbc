@@ -74,13 +74,26 @@ Route::prefix('v1')->group(function () {
             Route::put('reopen', [PbcRequestController::class, 'reopen']);
         });
 
-        // 📎 PBC Document Management
+        // 📎 PBC Document Management - UPDATED FOR UPLOAD CENTER
         Route::apiResource('pbc-documents', PbcDocumentController::class)->except(['update']);
+
+        // Document Statistics (must be before parameterized routes)
+        Route::get('pbc-documents-stats', [PbcDocumentController::class, 'getStats'])->name('pbc-documents.stats');
+
+        // Bulk Operations
+        Route::prefix('pbc-documents')->group(function () {
+            Route::post('bulk-approve', [PbcDocumentController::class, 'bulkApprove'])->name('pbc-documents.bulk-approve');
+            Route::post('bulk-reject', [PbcDocumentController::class, 'bulkReject'])->name('pbc-documents.bulk-reject');
+            Route::post('bulk-download', [PbcDocumentController::class, 'bulkDownload'])->name('pbc-documents.bulk-download');
+            Route::post('bulk-delete', [PbcDocumentController::class, 'bulkDelete'])->name('pbc-documents.bulk-delete');
+        });
+
+        // Individual Document Operations
         Route::prefix('pbc-documents/{document}')->group(function () {
-            Route::get('download', [PbcDocumentController::class, 'download']);
-            Route::get('preview', [PbcDocumentController::class, 'preview']);
-            Route::put('approve', [PbcDocumentController::class, 'approve']);
-            Route::put('reject', [PbcDocumentController::class, 'reject']);
+            Route::get('download', [PbcDocumentController::class, 'download'])->name('pbc-documents.download');
+            Route::get('preview', [PbcDocumentController::class, 'preview'])->name('pbc-documents.preview');
+            Route::post('approve', [PbcDocumentController::class, 'approve'])->name('pbc-documents.approve');
+            Route::post('reject', [PbcDocumentController::class, 'reject'])->name('pbc-documents.reject');
         });
 
         // 💬 Comments

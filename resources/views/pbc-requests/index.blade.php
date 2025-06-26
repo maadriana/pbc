@@ -88,7 +88,7 @@
                 <select class="filter-select" x-model="filters.project_id" @change="loadPbcRequests()">
                     <option value="">All Projects</option>
                     <template x-for="project in availableProjects" :key="project.id">
-                        <option :value="project.id" x-text="project.client?.name + ' - ' + formatEngagementType(project.engagement_type)"></option>
+                        <option :value="project.id" x-text="(project.client?.name || 'Unknown Client') + ' - ' + formatEngagementType(project.engagement_type)"></option>
                     </template>
                 </select>
             </div>
@@ -182,7 +182,7 @@
                         <th>Assigned To</th>
                         <th>Due Date</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                         <th>Notes</th>
                     </tr>
                 </thead>
@@ -398,7 +398,7 @@
                                 <select class="form-select" x-model="requestForm.project_id" required :class="{ 'error': errors.project_id }">
                                     <option value="">Select Project</option>
                                     <template x-for="project in availableProjects" :key="project.id">
-                                        <option :value="project.id" x-text="project.client?.name + ' - ' + formatEngagementType(project.engagement_type)"></option>
+                                        <option :value="project.id" x-text="(project.client?.name || 'Unknown Client') + ' - ' + formatEngagementType(project.engagement_type)"></option>
                                     </template>
                                 </select>
                                 <div class="form-error" x-show="errors.project_id" x-text="errors.project_id"></div>
@@ -533,11 +533,11 @@
                         </div>
                         <div class="detail-item">
                             <label>Category:</label>
-                            <span x-text="selectedRequest?.category?.name + ' (' + selectedRequest?.category?.code + ')'"></span>
+                            <span x-text="(selectedRequest?.category?.name || 'Unknown') + ' (' + (selectedRequest?.category?.code || 'N/A') + ')'"></span>
                         </div>
                         <div class="detail-item">
                             <label>Project:</label>
-                            <span x-text="selectedRequest?.project?.client?.name"></span>
+                            <span x-text="selectedRequest?.project?.client?.name || 'Unknown'"></span>
                         </div>
                         <div class="detail-item">
                             <label>Priority:</label>
@@ -553,11 +553,11 @@
                         <h4>Assignment & Timeline</h4>
                         <div class="detail-item">
                             <label>Requested By:</label>
-                            <span x-text="selectedRequest?.requestor?.name"></span>
+                            <span x-text="selectedRequest?.requestor?.name || 'Unknown'"></span>
                         </div>
                         <div class="detail-item">
                             <label>Assigned To:</label>
-                            <span x-text="selectedRequest?.assigned_to?.name"></span>
+                            <span x-text="selectedRequest?.assigned_to?.name || 'Unassigned'"></span>
                         </div>
                         <div class="detail-item">
                             <label>Date Requested:</label>
@@ -1516,42 +1516,67 @@
             selectedRequest: null,
             errors: {},
             bulkAssignUserId: '',
+            csrfToken: '',
 
             // Initialize
             async init() {
                 console.log('🚀 PBC Request Management Init Starting');
+                this.setupCsrfToken();
                 await this.loadSupportingData();
                 await this.loadPbcRequests();
                 await this.loadStats();
             },
 
+            // Setup CSRF token for all requests
+            setupCsrfToken() {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                if (!token) {
+                    console.error('❌ CSRF token not found!');
+                    return;
+                }
+                this.csrfToken = token;
+                console.log('✅ CSRF token found and configured');
+            },
+
+            // Helper method to get default fetch options with CSRF
+            getFetchOptions(method = 'GET', data = null) {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': this.csrfToken
+                    },
+                    credentials: 'same-origin'
+                };
+
+                if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+                    options.body = JSON.stringify(data);
+                }
+
+                return options;
+            },
+
             // Load supporting data
             async loadSupportingData() {
                 try {
-                    // Load projects
-                    const projectsResponse = await fetch('/api/v1/projects?per_page=100', {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
+                    console.log('📋 Loading supporting data...');
 
+                    // Load projects
+                    const projectsResponse = await fetch('/api/v1/projects?per_page=100', this.getFetchOptions());
                     if (projectsResponse.ok) {
                         const projectsResult = await projectsResponse.json();
                         this.availableProjects = projectsResult.data || [];
+                        console.log('✅ Projects loaded:', this.availableProjects.length);
                     }
 
                     // Load categories
-                    const categoriesResponse = await fetch('/api/v1/pbc-categories?per_page=100', {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-
+                    const categoriesResponse = await fetch('/api/v1/pbc-categories?per_page=100', this.getFetchOptions());
                     if (categoriesResponse.ok) {
                         const categoriesResult = await categoriesResponse.json();
                         this.availableCategories = categoriesResult.data || [];
+                        console.log('✅ Categories loaded:', this.availableCategories.length);
                     } else {
                         // Fallback: create some default categories for testing
                         this.availableCategories = [
@@ -1562,22 +1587,19 @@
                             { id: 5, name: 'Tax', code: 'TAX', color_code: '#EC4899' },
                             { id: 6, name: 'General Ledger', code: 'GL', color_code: '#6B7280' }
                         ];
+                        console.log('⚠️ Using fallback categories');
                     }
 
                     // Load users
-                    const usersResponse = await fetch('/api/v1/users?per_page=100', {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-
+                    const usersResponse = await fetch('/api/v1/users?per_page=100', this.getFetchOptions());
                     if (usersResponse.ok) {
                         const usersResult = await usersResponse.json();
                         this.availableUsers = usersResult.data || [];
+                        console.log('✅ Users loaded:', this.availableUsers.length);
                     }
                 } catch (error) {
-                    console.error('Failed to load supporting data:', error);
+                    console.error('❌ Failed to load supporting data:', error);
+                    this.showError('Failed to load supporting data: ' + error.message);
                 }
             },
 
@@ -1592,16 +1614,11 @@
                         page: page
                     });
 
-                    const response = await fetch(`/api/v1/pbc-requests?${params}`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    });
+                    const response = await fetch(`/api/v1/pbc-requests?${params}`, this.getFetchOptions());
 
                     if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('❌ HTTP Error:', response.status, errorText);
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
 
@@ -1659,22 +1676,12 @@
 
                     const method = this.isEditing ? 'PUT' : 'POST';
 
-                    console.log('Sending PBC request data:', formData);
+                    console.log('💾 Sending PBC request data:', formData);
 
-                    const response = await fetch(url, {
-                        method: method,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify(formData)
-                    });
+                    const response = await fetch(url, this.getFetchOptions(method, formData));
 
                     const result = await response.json();
-                    console.log('Server response:', result);
+                    console.log('📤 Server response:', result);
 
                     if (result.success) {
                         this.showSuccess(this.isEditing ? 'PBC request updated successfully' : 'PBC request created successfully');
@@ -1684,13 +1691,13 @@
                     } else {
                         if (result.errors) {
                             this.errors = result.errors;
-                            console.log('Validation errors:', this.errors);
+log('⚠️ Validation errors:', this.errors);
                         } else {
                             this.showError(result.message || 'Failed to save PBC request');
                         }
                     }
                 } catch (error) {
-                    console.error('Network error:', error);
+                    console.error('❌ Network error:', error);
                     this.showError('Network error: ' + error.message);
                 } finally {
                     this.saving = false;
@@ -1703,16 +1710,7 @@
                 }
 
                 try {
-                    const response = await fetch(`/api/v1/pbc-requests/${request.id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    });
-
+                    const response = await fetch(`/api/v1/pbc-requests/${request.id}`, this.getFetchOptions('DELETE'));
                     const result = await response.json();
 
                     if (result.success) {
@@ -1729,16 +1727,7 @@
 
             async completeRequest(request) {
                 try {
-                    const response = await fetch(`/api/v1/pbc-requests/${request.id}/complete`, {
-                        method: 'PUT',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    });
-
+                    const response = await fetch(`/api/v1/pbc-requests/${request.id}/complete`, this.getFetchOptions('PUT'));
                     const result = await response.json();
 
                     if (result.success) {
@@ -1755,16 +1744,7 @@
 
             async reopenRequest(request) {
                 try {
-                    const response = await fetch(`/api/v1/pbc-requests/${request.id}/reopen`, {
-                        method: 'PUT',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    });
-
+                    const response = await fetch(`/api/v1/pbc-requests/${request.id}/reopen`, this.getFetchOptions('PUT'));
                     const result = await response.json();
 
                     if (result.success) {
@@ -1877,20 +1857,10 @@
                 if (!confirm(`Mark ${this.selectedRequests.length} selected requests as completed?`)) return;
 
                 try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({
-                            pbc_request_ids: this.selectedRequests,
-                            action: 'complete'
-                        })
-                    });
+                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
+                        pbc_request_ids: this.selectedRequests,
+                        action: 'complete'
+                    }));
 
                     const result = await response.json();
                     if (result.success) {
@@ -1910,20 +1880,10 @@
                 if (!confirm(`Reopen ${this.selectedRequests.length} selected requests?`)) return;
 
                 try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({
-                            pbc_request_ids: this.selectedRequests,
-                            action: 'reopen'
-                        })
-                    });
+                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
+                        pbc_request_ids: this.selectedRequests,
+                        action: 'reopen'
+                    }));
 
                     const result = await response.json();
                     if (result.success) {
@@ -1945,21 +1905,11 @@
 
             async performBulkAssign() {
                 try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({
-                            pbc_request_ids: this.selectedRequests,
-                            action: 'assign',
-                            assigned_to_id: this.bulkAssignUserId
-                        })
-                    });
+                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
+                        pbc_request_ids: this.selectedRequests,
+                        action: 'assign',
+                        assigned_to_id: this.bulkAssignUserId
+                    }));
 
                     const result = await response.json();
                     if (result.success) {
@@ -1979,20 +1929,10 @@
                 if (!confirm(`Delete ${this.selectedRequests.length} selected requests? This action cannot be undone.`)) return;
 
                 try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({
-                            pbc_request_ids: this.selectedRequests,
-                            action: 'delete'
-                        })
-                    });
+                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
+                        pbc_request_ids: this.selectedRequests,
+                        action: 'delete'
+                    }));
 
                     const result = await response.json();
                     if (result.success) {
@@ -2037,14 +1977,7 @@
             async exportRequests() {
                 try {
                     const params = new URLSearchParams(this.filters);
-                    const response = await fetch(`/api/v1/pbc-requests/export?${params}`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    });
+                    const response = await fetch(`/api/v1/pbc-requests/export?${params}`, this.getFetchOptions());
 
                     if (response.ok) {
                         const blob = await response.blob();
@@ -2115,22 +2048,26 @@
             },
 
             formatEngagementType(type) {
+                if (!type) return 'Unknown';
                 return type.split('_').map(word =>
                     word.charAt(0).toUpperCase() + word.slice(1)
                 ).join(' ');
             },
 
             formatStatus(status) {
+                if (!status) return 'Unknown';
                 return status.split('_').map(word =>
                     word.charAt(0).toUpperCase() + word.slice(1)
                 ).join(' ');
             },
 
             formatPriority(priority) {
+                if (!priority) return 'Unknown';
                 return priority.charAt(0).toUpperCase() + priority.slice(1);
             },
 
             formatRole(role) {
+                if (!role) return 'Unknown';
                 return role.split('_').map(word =>
                     word.charAt(0).toUpperCase() + word.slice(1)
                 ).join(' ');
