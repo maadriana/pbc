@@ -8,7 +8,8 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\PbcRequestController;
 use App\Http\Controllers\PbcDocumentController;
-use App\Http\Controllers\MessageController; // ADD THIS MISSING IMPORT
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,16 +43,31 @@ Route::middleware('guest')->group(function () {
 // Logout route (needs to be outside guest middleware)
 Route::post('logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
+// Test API route - Public for testing
+Route::get('/test-api', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'API is working',
+        'timestamp' => now()
+    ]);
+});
+
 // Protected routes
 Route::middleware(['auth:web'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Messages - ADD THIS
+    // Messages
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
 
     // Upload Center
     Route::get('/upload-center', [PbcDocumentController::class, 'uploadCenterPage'])->name('upload-center');
+
+    // Settings routes (Web endpoints for AJAX calls)
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::get('/settings/get', [SettingsController::class, 'getSettings'])->name('settings.get');
+    Route::post('/settings/update', [SettingsController::class, 'updateSettings'])->name('settings.update');
+    Route::post('/settings/reset', [SettingsController::class, 'resetToDefaults'])->name('settings.reset');
 
     // User Management - Full Resource Routes
     Route::resource('users', UserController::class)->names([
@@ -118,13 +134,3 @@ Route::middleware(['auth:web'])->group(function () {
     Route::put('pbc-requests/{pbcRequest}/reopen', [PbcRequestController::class, 'reopen'])->name('pbc-requests.reopen');
     Route::put('pbc-requests/bulk-update', [PbcRequestController::class, 'bulkUpdate'])->name('pbc-requests.bulk-update');
 });
-
-// Test API route - MOVE OUTSIDE OF PROTECTED GROUP
-Route::get('/test-api', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'API is working',
-        'timestamp' => now()
-    ]);
-});
-

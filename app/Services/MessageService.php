@@ -25,7 +25,7 @@ class MessageService
         return Cache::remember($cacheKey, 300, function () use ($userId, $filters) {
             $query = PbcConversation::with([
                 'client:id,name',
-                'project:id,name',
+                'project:id,name,engagement_type,engagement_period',
                 'lastMessage:id,conversation_id,message,created_at,sender_id,message_type',
                 'lastMessage.sender:id,name,role',
                 'participants:id,name,role'
@@ -42,7 +42,8 @@ class MessageService
                     })
                     ->orWhereHas('messages', function ($q) use ($search) {
                         $q->where('message', 'like', "%{$search}%");
-                    });
+                    })
+                    ->orWhere('title', 'like', "%{$search}%");
                 });
             })
             ->when($filters['status'] ?? null, function ($q, $status) {
@@ -145,10 +146,10 @@ class MessageService
      * Create a new conversation
      */
     public function createConversation($clientId, $projectId, array $participantIds, $creatorId, $title = null)
-{
-    // Validate relationships
-    $client = Client::findOrFail($clientId);
-    $project = Project::where('client_id', $clientId)->findOrFail($projectId);
+    {
+        // Validate relationships
+        $client = Client::findOrFail($clientId);
+        $project = Project::where('client_id', $clientId)->findOrFail($projectId);
 
         // Ensure creator is included in participants
         if (!in_array($creatorId, $participantIds)) {
@@ -157,11 +158,12 @@ class MessageService
 
         DB::beginTransaction();
         try {
-        // Generate title if not provided - UPDATED
-        if (!$title) {
-            $title = "{$client->name} - " . ucfirst($project->engagement_type) . " {$project->engagement_period->format('Y')}";
-        }
-
+            // Generate title if not provided
+            if (!$title) {
+                $engagementType = $project->engagement_type ?? 'Project';
+                $period = $project->engagement_period ? $project->engagement_period->format('Y') : date('Y');
+                $title = "{$client->name} - " . ucfirst($engagementType) . " {$period}";
+            }
 
             $conversation = PbcConversation::create([
                 'client_id' => $clientId,
@@ -200,7 +202,7 @@ class MessageService
 
             return $conversation->load([
                 'client:id,name',
-                'project:id,name',
+                'project:id,name,engagement_type,engagement_period',
                 'participants:id,name,role',
                 'creator:id,name'
             ]);
@@ -209,6 +211,60 @@ class MessageService
             DB::rollback();
             throw $e;
         }
+    }
+
+    /**
+     * Get conversation statistics
+     */
+    public function getConversationStats($conversationId, $userId)
+    {
+        // Verify user has access to conversation
+        $conversation = PbcConversation::forUser($userId)->findOrFail($conversationId);
+
+        $stats = [
+            'total_messages' => $conversation->messages()->count(),
+            'total_attachments' => $conversation->messages()->whereNotNull('attachments')->count(),
+            'participants_count' => $conversation->activeParticipants()->count(),
+            'unread_count' => $conversation->getUnreadCountForUser($userId),
+            'created_at' => $conversation->created_at,
+            'last_activity' => $conversation->last_message_at
+        ];
+
+        return $stats;
+    }
+
+    /**
+     * Search messages within conversation
+     */
+    public function searchMessages($conversationId, $userId, $searchTerm, $page = 1)
+    {
+        // Verify user has access to conversation
+        $conversation = PbcConversation::forUser($userId)->findOrFail($conversationId);
+
+        return PbcMessage::with([
+            'sender:id,name,role'
+        ])
+        ->forConversation($conversationId)
+        ->where('message', 'like', "%{$searchTerm}%")
+        ->orderBy('created_at', 'desc')
+        ->paginate(20, ['*'], 'page', $page);
+    }
+
+    /**
+     * Get conversation attachments
+     */
+    public function getConversationAttachments($conversationId, $userId, $page = 1)
+    {
+        // Verify user has access to conversation
+        $conversation = PbcConversation::forUser($userId)->findOrFail($conversationId);
+
+        return PbcMessage::with([
+            'sender:id,name,role'
+        ])
+        ->forConversation($conversationId)
+        ->whereNotNull('attachments')
+        ->orderBy('created_at', 'desc')
+        ->paginate(20, ['*'], 'page', $page);
     }
 
     /**

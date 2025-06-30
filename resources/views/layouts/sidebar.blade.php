@@ -58,7 +58,11 @@
                 <div class="nav-icon"><i class="fas fa-tasks"></i></div>
                 <span class="nav-text">PBC Requests</span>
                 @php
-                    $pendingCount = \App\Models\PbcRequest::where('status', 'pending')->count();
+                    try {
+                        $pendingCount = \App\Models\PbcRequest::where('status', 'pending')->count();
+                    } catch (\Exception $e) {
+                        $pendingCount = 0;
+                    }
                 @endphp
                 @if($pendingCount > 0)
                     <span class="nav-badge">{{ $pendingCount }}</span>
@@ -74,12 +78,12 @@
             <div class="nav-section-title">Documents</div>
 
             {{-- Upload Center - All users have upload_document permission --}}
-@if(auth()->user()->hasPermission('upload_document'))
-<a href="{{ route('upload-center') }}" class="nav-item {{ request()->routeIs('upload-center') ? 'active' : '' }}">
-    <div class="nav-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-    <span class="nav-text">Upload Center</span>
-</a>
-@endif
+            @if(auth()->user()->hasPermission('upload_document'))
+            <a href="{{ route('upload-center') }}" class="nav-item {{ request()->routeIs('upload-center') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <span class="nav-text">Upload Center</span>
+            </a>
+            @endif
 
             {{-- Document Review - Those who can approve documents --}}
             @if(auth()->user()->hasPermission('approve_document'))
@@ -87,7 +91,11 @@
                 <div class="nav-icon"><i class="fas fa-file-alt"></i></div>
                 <span class="nav-text">Document Review</span>
                 @php
-                    $pendingDocs = \App\Models\PbcDocument::where('status', 'pending')->count();
+                    try {
+                        $pendingDocs = \App\Models\PbcDocument::where('status', 'pending')->count();
+                    } catch (\Exception $e) {
+                        $pendingDocs = 0;
+                    }
                 @endphp
                 @if($pendingDocs > 0)
                     <span class="nav-badge">{{ $pendingDocs }}</span>
@@ -110,12 +118,12 @@
         <div class="nav-section">
             <div class="nav-section-title">Communication</div>
 
-{{-- Messages --}}
-    <a href="{{ route('messages') }}" class="nav-item {{ request()->routeIs('messages') ? 'active' : '' }}">
-        <div class="nav-icon"><i class="fas fa-comments"></i></div>
-        <span class="nav-text">Messages</span>
-        {{-- We'll add unread count later once messages are flowing --}}
-    </a>
+            {{-- Messages --}}
+            <a href="{{ route('messages') }}" class="nav-item {{ request()->routeIs('messages') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-comments"></i></div>
+                <span class="nav-text">Messages</span>
+                {{-- We'll add unread count later once messages are flowing --}}
+            </a>
 
             {{-- Reminders - Show for users who can send reminders --}}
             @if(auth()->user()->hasPermission('send_reminder'))
@@ -171,7 +179,7 @@
         @if(auth()->user()->hasPermission('manage_settings'))
         <div class="nav-section">
             <div class="nav-section-title">System</div>
-            <a href="#" class="nav-item">
+            <a href="{{ route('settings') }}" class="nav-item {{ request()->routeIs('settings') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-cog"></i></div>
                 <span class="nav-text">Settings</span>
             </a>

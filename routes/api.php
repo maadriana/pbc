@@ -14,6 +14,7 @@ use App\Http\Controllers\PbcReminderController;
 use App\Http\Controllers\PbcCategoryController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,6 +146,15 @@ Route::prefix('v1')->group(function () {
             Route::get('available-users', [MessageController::class, 'getAvailableUsers']);
         });
 
-    }); // 🔐 End of protected routes
+        // Settings Management - add these lines
+    Route::prefix('settings')->group(function () {
+    Route::get('/', [SettingsController::class, 'getSettings']);
+    Route::post('/', [SettingsController::class, 'updateSettings']);
+    Route::post('reset', [SettingsController::class, 'resetToDefaults']);
+    Route::get('public', [SettingsController::class, 'getPublicSettings']);
+    Route::get('{key}', [SettingsController::class, 'getSetting']);
+    Route::put('{key}', [SettingsController::class, 'updateSetting']);
+});
 
 }); // 📦 End of /v1
+});
