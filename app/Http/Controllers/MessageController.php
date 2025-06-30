@@ -2,30 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PbcConversation;
-use App\Models\PbcMessage;
-use App\Models\Client;
-use App\Models\Project;
-use App\Models\User;
-use App\Services\MessageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use App\Http\Requests\SendMessageRequest;
-use App\Http\Requests\CreateConversationRequest;
+use App\Models\PbcConversation;
+use App\Models\PbcMessage;
+use App\Models\User;
+use App\Models\Client;
+use App\Models\Project;
 
-class MessageController extends Controller
+class MessageController extends BaseController
 {
-    protected $messageService;
-
-    public function __construct(MessageService $messageService)
-    {
-        $this->messageService = $messageService;
-    }
-
     /**
      * Display the messages page
      */
@@ -40,222 +29,334 @@ class MessageController extends Controller
     }
 
     /**
-     * Get user's conversations with pagination and filters
+     * Get conversations for the current user
      */
-    public function getConversations(Request $request): JsonResponse
+    public function getConversations(): JsonResponse
     {
         try {
-            // Check permission
-            if (!auth()->user()->hasPermission('view_messages')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You do not have permission to view messages'
-                ], 403);
-            }
+            $userId = auth()->id();
 
-            $filters = $request->validate([
-                'search' => 'nullable|string|max:255',
-                'status' => 'nullable|in:active,completed,archived',
-                'per_page' => 'nullable|integer|min:1|max:100',
-                'page' => 'nullable|integer|min:1'
-            ]);
+            $conversations = PbcConversation::with(['client', 'project', 'lastMessage.sender', 'participants'])
+                ->forUser($userId)
+                ->withUnreadCount($userId)
+                ->orderBy('last_message_at', 'desc')
+                ->get();
 
-            $conversations = $this->messageService->getUserConversations(
-                auth()->id(),
-                $filters
-            );
+            $transformedData = $conversations->map(function ($conversation) {
+                return [
+                    'id' => $conversation->id,
+                    'title' => $conversation->title,
+                    'client' => $conversation->client ? [
+                        'id' => $conversation->client->id,
+                        'name' => $conversation->client->name
+                    ] : null,
+                    'project' => $conversation->project ? [
+                        'id' => $conversation->project->id,
+                        'name' => $conversation->project->name,
+                        'engagement_type' => $conversation->project->engagement_type ?? 'Project'
+                    ] : null,
+                    'last_message' => $conversation->lastMessage ? [
+                        'message' => $conversation->lastMessage->message,
+                        'sender_id' => $conversation->lastMessage->sender_id
+                    ] : null,
+                    'last_message_at' => $conversation->last_message_at ? $conversation->last_message_at->toISOString() : null,
+                    'unread_count' => $conversation->unread_count ?? 0,
+                    'status' => $conversation->status,
+                    'participants' => $conversation->participants->map(function ($participant) {
+                        return [
+                            'id' => $participant->id,
+                            'name' => $participant->name
+                        ];
+                    }),
+                    'created_at' => $conversation->created_at->toISOString()
+                ];
+            });
 
-            return response()->json([
-                'success' => true,
-                'data' => $conversations->items(),
-                'meta' => [
-                    'current_page' => $conversations->currentPage(),
-                    'last_page' => $conversations->lastPage(),
-                    'per_page' => $conversations->perPage(),
-                    'total' => $conversations->total(),
-                    'from' => $conversations->firstItem(),
-                    'to' => $conversations->lastItem()
-                ]
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
+            return $this->success($transformedData, 'Conversations retrieved successfully');
 
         } catch (\Exception $e) {
-            \Log::error('MessageController::getConversations failed', [
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch conversations',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            Log::error('Failed to get conversations: ' . $e->getMessage());
+            return $this->error('Failed to retrieve conversations', $e->getMessage(), 500);
         }
     }
 
     /**
-     * Get messages for a specific conversation
+     * Get available users for conversations
      */
-    public function getMessages(Request $request, $conversationId): JsonResponse
+    public function getAvailableUsers(): JsonResponse
     {
         try {
-            // Check permission
-            if (!auth()->user()->hasPermission('view_messages')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You do not have permission to view messages'
-                ], 403);
-            }
+            $users = User::where('is_active', true)
+                         ->where('id', '!=', auth()->id())
+                         ->select('id', 'name', 'role', 'email')
+                         ->orderBy('name')
+                         ->get();
 
+            return $this->success($users, 'Users retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get users: ' . $e->getMessage());
+            return $this->error('Failed to retrieve users', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get conversation details
+     */
+    public function getConversation($id): JsonResponse
+    {
+        try {
+            $conversation = PbcConversation::with(['client', 'project', 'participants'])
+                                          ->forUser(auth()->id())
+                                          ->findOrFail($id);
+
+            $data = [
+                'id' => $conversation->id,
+                'title' => $conversation->title,
+                'client' => $conversation->client ? [
+                    'id' => $conversation->client->id,
+                    'name' => $conversation->client->name
+                ] : null,
+                'project' => $conversation->project ? [
+                    'id' => $conversation->project->id,
+                    'name' => $conversation->project->name,
+                    'engagement_type' => $conversation->project->engagement_type ?? 'Project'
+                ] : null,
+                'status' => $conversation->status,
+                'participants' => $conversation->participants->map(function ($participant) {
+                    return [
+                        'id' => $participant->id,
+                        'name' => $participant->name
+                    ];
+                }),
+                'created_at' => $conversation->created_at->toISOString()
+            ];
+
+            return $this->success($data, 'Conversation retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get conversation: ' . $e->getMessage());
+            return $this->error('Failed to retrieve conversation', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get messages for a conversation
+     */
+    public function getMessages($conversationId): JsonResponse
+    {
+        try {
+            // Verify user has access to conversation
+            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
+
+            $messages = PbcMessage::with(['sender:id,name,role', 'replyTo:id,message,sender_id', 'replyTo.sender:id,name'])
+                ->forConversation($conversationId)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            $transformedData = $messages->map(function ($message) {
+                return [
+                    'id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'sender_id' => $message->sender_id,
+                    'sender' => $message->sender ? [
+                        'id' => $message->sender->id,
+                        'name' => $message->sender->name
+                    ] : ['id' => null, 'name' => 'System'],
+                    'message' => $message->message,
+                    'attachments' => $message->attachments ?? [],
+                    'is_read' => $message->is_read,
+                    'created_at' => $message->created_at->toISOString()
+                ];
+            });
+
+            // Mark messages as read for this user
+            PbcMessage::forConversation($conversationId)
+                ->where('sender_id', '!=', auth()->id())
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+
+            return $this->success($transformedData, 'Messages retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get messages: ' . $e->getMessage());
+            return $this->error('Failed to retrieve messages', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Send a message
+     */
+    public function sendMessage(Request $request): JsonResponse
+    {
+        try {
             $request->validate([
-                'page' => 'nullable|integer|min:1'
+                'conversation_id' => 'required|integer|exists:pbc_conversations,id',
+                'message' => 'nullable|string|max:5000',
+                'attachments.*' => 'file|max:10240'
             ]);
 
-            $messages = $this->messageService->getConversationMessages(
-                $conversationId,
-                auth()->id(),
-                $request->get('page', 1)
-            );
+            // Verify user has access to conversation
+            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($request->conversation_id);
 
-            return response()->json([
-                'success' => true,
-                'data' => $messages->items(),
-                'meta' => [
-                    'current_page' => $messages->currentPage(),
-                    'last_page' => $messages->lastPage(),
-                    'per_page' => $messages->perPage(),
-                    'total' => $messages->total(),
-                    'from' => $messages->firstItem(),
-                    'to' => $messages->lastItem()
-                ]
-            ]);
+            if (!auth()->user()->hasPermission('send_messages')) {
+                return $this->forbidden('You do not have permission to send messages');
+            }
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Conversation not found or you do not have access to it'
-            ], 404);
+            // Process attachments
+            $attachmentData = [];
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $file) {
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $path = $file->storeAs('conversations/' . $request->conversation_id, $filename, 'public');
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
-
-        } catch (\Exception $e) {
-            \Log::error('MessageController::getMessages failed', [
-                'user_id' => auth()->id(),
-                'conversation_id' => $conversationId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch messages',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Send a new message
-     */
-    public function sendMessage(SendMessageRequest $request): JsonResponse
-    {
-        try {
-            $message = $this->messageService->sendMessage(
-                $request->conversation_id,
-                auth()->id(),
-                $request->message,
-                $request->file('attachments', []),
-                $request->reply_to_id
-            );
-
-            // Clear cache
-            Cache::forget("user_conversations_" . auth()->id());
-            Cache::forget("user_unread_count_" . auth()->id());
-
-            // Clear cache for all conversation participants
-            $conversation = PbcConversation::with('participants')->find($request->conversation_id);
-            if ($conversation) {
-                foreach ($conversation->participants as $participant) {
-                    if ($participant->id !== auth()->id()) {
-                        Cache::forget("user_conversations_{$participant->id}");
-                        Cache::forget("user_unread_count_{$participant->id}");
-                    }
+                    $attachmentData[] = [
+                        'name' => $file->getClientOriginalName(),
+                        'filename' => $filename,
+                        'path' => $path,
+                        'size' => $file->getSize(),
+                        'type' => $file->getClientOriginalExtension()
+                    ];
                 }
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $message,
-                'message' => 'Message sent successfully'
-            ], 201);
-
-        } catch (\Exception $e) {
-            \Log::error('MessageController::sendMessage failed', [
-                'user_id' => auth()->id(),
-                'conversation_id' => $request->conversation_id ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            // Create message
+            $message = PbcMessage::create([
+                'conversation_id' => $request->conversation_id,
+                'sender_id' => auth()->id(),
+                'message' => $request->message,
+                'attachments' => $attachmentData,
+                'message_type' => empty($attachmentData) ? 'text' : 'file',
+                'is_read' => false
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'error' => config('app.debug') ? $e->getTraceAsString() : 'Failed to send message'
-            ], 400);
+            // Update conversation last message time
+            $conversation->update(['last_message_at' => now()]);
+
+            $message->load('sender:id,name,role');
+
+            $transformedMessage = [
+                'id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'sender_id' => $message->sender_id,
+                'sender' => [
+                    'id' => $message->sender->id,
+                    'name' => $message->sender->name
+                ],
+                'message' => $message->message,
+                'attachments' => $message->attachments ?? [],
+                'is_read' => $message->is_read,
+                'created_at' => $message->created_at->toISOString()
+            ];
+
+            Log::info('Message sent', [
+                'user_id' => auth()->id(),
+                'conversation_id' => $request->conversation_id,
+                'message_id' => $message->id
+            ]);
+
+            return $this->success($transformedMessage, 'Message sent successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send message: ' . $e->getMessage());
+            return $this->error('Failed to send message', $e->getMessage(), 500);
         }
     }
 
     /**
-     * Mark message as read
+     * Create a new conversation
      */
-    public function markAsRead(Request $request, $messageId): JsonResponse
+    public function createConversation(Request $request): JsonResponse
     {
         try {
-            $this->messageService->markMessageAsRead($messageId, auth()->id());
-
-            // Clear unread count cache
-            Cache::forget("user_unread_count_" . auth()->id());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Message marked as read'
+            $request->validate([
+                'client_id' => 'required|integer|exists:clients,id',
+                'project_id' => 'required|integer|exists:projects,id',
+                'participant_ids' => 'required|array|min:1',
+                'participant_ids.*' => 'integer|exists:users,id|distinct',
+                'title' => 'nullable|string|max:255'
             ]);
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Message not found or you do not have access to it'
-            ], 404);
+            if (!auth()->user()->hasPermission('send_messages')) {
+                return $this->forbidden('You do not have permission to create conversations');
+            }
+
+            DB::beginTransaction();
+            try {
+                // Get client and project for title generation
+                $client = Client::findOrFail($request->client_id);
+                $project = Project::findOrFail($request->project_id);
+
+                $title = $request->title ?: "{$client->name} - {$project->name}";
+
+                // Create conversation
+                $conversation = PbcConversation::create([
+                    'client_id' => $request->client_id,
+                    'project_id' => $request->project_id,
+                    'title' => $title,
+                    'created_by' => auth()->id(),
+                    'status' => 'active',
+                    'last_message_at' => now()
+                ]);
+
+                // Add participants (include creator)
+                $participantIds = array_unique(array_merge($request->participant_ids, [auth()->id()]));
+                $participantData = [];
+
+                foreach ($participantIds as $userId) {
+                    $participantData[$userId] = [
+                        'joined_at' => now(),
+                        'is_active' => true,
+                        'role' => $userId === auth()->id() ? 'moderator' : 'participant'
+                    ];
+                }
+
+                $conversation->participants()->attach($participantData);
+
+                // Create system message
+                PbcMessage::create([
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => null,
+                    'message' => "Conversation created by " . auth()->user()->name,
+                    'message_type' => 'system',
+                    'is_read' => false
+                ]);
+
+                DB::commit();
+
+                $conversation->load(['client', 'project', 'participants']);
+
+                $transformedConversation = [
+                    'id' => $conversation->id,
+                    'title' => $conversation->title,
+                    'client_id' => $conversation->client_id,
+                    'project_id' => $conversation->project_id,
+                    'status' => $conversation->status,
+                    'created_by' => auth()->id(),
+                    'created_at' => $conversation->created_at->toISOString()
+                ];
+
+                Log::info('Conversation created', [
+                    'user_id' => auth()->id(),
+                    'conversation_id' => $conversation->id,
+                    'participants' => $participantIds
+                ]);
+
+                return $this->success($transformedConversation, 'Conversation created successfully');
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
 
         } catch (\Exception $e) {
-            \Log::error('MessageController::markAsRead failed', [
-                'user_id' => auth()->id(),
-                'message_id' => $messageId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to mark message as read',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            Log::error('Failed to create conversation: ' . $e->getMessage());
+            return $this->error('Failed to create conversation', $e->getMessage(), 500);
         }
     }
 
     /**
-     * Mark all messages in a conversation as read
+     * Mark conversation as read
      */
     public function markConversationAsRead($conversationId): JsonResponse
     {
@@ -263,226 +364,124 @@ class MessageController extends Controller
             // Verify user has access to conversation
             $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
 
-            // Mark all unread messages as read
-            $conversation->markAsReadForUser(auth()->id());
-
-            // Clear cache
-            Cache::forget("user_unread_count_" . auth()->id());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'All messages marked as read'
-            ]);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Conversation not found or you do not have access to it'
-            ], 404);
-
-        } catch (\Exception $e) {
-            \Log::error('MessageController::markConversationAsRead failed', [
-                'user_id' => auth()->id(),
-                'conversation_id' => $conversationId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to mark messages as read',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Create a new conversation
-     */
-    public function createConversation(CreateConversationRequest $request): JsonResponse
-    {
-        try {
-            $conversation = $this->messageService->createConversation(
-                $request->client_id,
-                $request->project_id,
-                $request->participant_ids,
-                auth()->id(),
-                $request->title
-            );
-
-            // Clear cache for all participants
-            foreach ($request->participant_ids as $userId) {
-                Cache::forget("user_conversations_{$userId}");
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $conversation,
-                'message' => 'Conversation created successfully'
-            ], 201);
-
-        } catch (\Exception $e) {
-            \Log::error('MessageController::createConversation failed', [
-                'user_id' => auth()->id(),
-                'client_id' => $request->client_id ?? null,
-                'project_id' => $request->project_id ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'error' => config('app.debug') ? $e->getTraceAsString() : 'Failed to create conversation'
-            ], 400);
-        }
-    }
-
-    /**
-     * Get conversation details
-     */
-    public function getConversation($conversationId): JsonResponse
-    {
-        try {
-            $conversation = PbcConversation::with([
-                'client:id,name',
-                'project:id,name',
-                'participants:id,name,role',
-                'creator:id,name',
-                'lastMessage:id,message,created_at,sender_id',
-                'lastMessage.sender:id,name'
-            ])
-            ->withUnreadCount(auth()->id())
-            ->forUser(auth()->id())
-            ->findOrFail($conversationId);
-
-            return response()->json([
-                'success' => true,
-                'data' => $conversation
-            ]);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Conversation not found or access denied'
-            ], 404);
-
-        } catch (\Exception $e) {
-            \Log::error('MessageController::getConversation failed', [
-                'user_id' => auth()->id(),
-                'conversation_id' => $conversationId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch conversation details',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Update conversation status
-     */
-    public function updateConversationStatus(Request $request, $conversationId): JsonResponse
-    {
-        try {
-            $request->validate([
-                'status' => 'required|in:active,completed,archived'
-            ]);
-
-            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
-
-            // Check permission - only creator or those with manage_conversations permission
-            if (!auth()->user()->hasPermission('manage_conversations') &&
-                $conversation->created_by !== auth()->id()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You do not have permission to update this conversation'
-                ], 403);
-            }
-
-            $conversation->update(['status' => $request->status]);
-
-            // Clear cache for all participants
-            foreach ($conversation->participants as $participant) {
-                Cache::forget("user_conversations_{$participant->id}");
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $conversation->fresh(),
-                'message' => 'Conversation status updated successfully'
-            ]);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Conversation not found or access denied'
-            ], 404);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
-
-        } catch (\Exception $e) {
-            \Log::error('MessageController::updateConversationStatus failed', [
-                'user_id' => auth()->id(),
-                'conversation_id' => $conversationId,
-                'status' => $request->status ?? null,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update conversation status',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Get user's unread message count
-     */
-  public function getUnreadCount(): JsonResponse
-{
-    try {
-        $count = Cache::remember(
-            "user_unread_count_" . auth()->id(),
-            300, // 5 minutes
-            function () {
-                return PbcMessage::whereHas('conversation', function ($q) {
-                    $q->whereHas('participants', function ($participantQuery) {
-                        $participantQuery->where('pbc_conversation_participants.user_id', auth()->id())
-                                       ->where('pbc_conversation_participants.is_active', true);
-                    });
-                })
+            // Mark all messages in conversation as read for this user
+            PbcMessage::forConversation($conversationId)
                 ->where('sender_id', '!=', auth()->id())
                 ->where('is_read', false)
-                ->count();
-            }
-        );
+                ->update(['is_read' => true, 'read_at' => now()]);
 
-        return response()->json([
-            'success' => true,
-            'data' => ['unread_count' => $count]
-        ]);
+            Log::info('Conversation marked as read', [
+                'user_id' => auth()->id(),
+                'conversation_id' => $conversationId
+            ]);
 
-    } catch (\Exception $e) {
-        \Log::error('MessageController::getUnreadCount failed', [
-            'user_id' => auth()->id(),
-            'error' => $e->getMessage()
-        ]);
+            return $this->success(null, 'Conversation marked as read');
 
-        return response()->json([
-            'success' => true, // Don't fail the request
-            'data' => ['unread_count' => 0] // Default to 0
-        ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to mark conversation as read: ' . $e->getMessage());
+            return $this->error('Failed to mark conversation as read', $e->getMessage(), 500);
+        }
     }
-}
+
+    /**
+     * Get clients (for dropdown)
+     */
+    public function getClients(): JsonResponse
+    {
+        try {
+            $clients = Client::where('is_active', true)
+                            ->select('id', 'name')
+                            ->orderBy('name')
+                            ->get();
+
+            return $this->success($clients, 'Clients retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get clients: ' . $e->getMessage());
+            return $this->error('Failed to retrieve clients', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get projects (for dropdown)
+     */
+    public function getProjects(): JsonResponse
+    {
+        try {
+            $projects = Project::with('client:id,name')
+                              ->select('id', 'name', 'client_id', 'engagement_type', 'engagement_period')
+                              ->orderBy('name')
+                              ->get();
+
+            $transformedProjects = $projects->map(function ($project) {
+                return [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'client_id' => $project->client_id,
+                    'engagement_type' => $project->engagement_type ?? 'Project',
+                    'engagement_period' => $project->engagement_period
+                ];
+            });
+
+            return $this->success($transformedProjects, 'Projects retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get projects: ' . $e->getMessage());
+            return $this->error('Failed to retrieve projects', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get unread message count
+     */
+    public function getUnreadCount(): JsonResponse
+    {
+        try {
+            $userId = auth()->id();
+
+            // Count unread messages where user is participant but not sender
+            $unreadCount = DB::table('pbc_messages as m')
+                ->join('pbc_conversations as c', 'm.conversation_id', '=', 'c.id')
+                ->join('pbc_conversation_participants as cp', function($join) use ($userId) {
+                    $join->on('cp.conversation_id', '=', 'c.id')
+                         ->where('cp.user_id', '=', $userId)
+                         ->where('cp.is_active', '=', true);
+                })
+                ->where('m.sender_id', '!=', $userId)
+                ->where('m.is_read', false)
+                ->whereNull('m.deleted_at')
+                ->count();
+
+            return $this->success(['unread_count' => $unreadCount], 'Unread count retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get unread count: ' . $e->getMessage());
+            return $this->error('Failed to retrieve unread count', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Mark specific message as read
+     */
+    public function markAsRead($messageId): JsonResponse
+    {
+        try {
+            $message = PbcMessage::findOrFail($messageId);
+
+            // Verify user has access to this message's conversation
+            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($message->conversation_id);
+
+            if ($message->sender_id !== auth()->id() && !$message->is_read) {
+                $message->update(['is_read' => true, 'read_at' => now()]);
+            }
+
+            return $this->success(null, 'Message marked as read');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to mark message as read: ' . $e->getMessage());
+            return $this->error('Failed to mark message as read', $e->getMessage(), 500);
+        }
+    }
 
     /**
      * Get conversation statistics
@@ -490,301 +489,74 @@ class MessageController extends Controller
     public function getConversationStats($conversationId): JsonResponse
     {
         try {
-            $stats = $this->messageService->getConversationStats($conversationId, auth()->id());
+            // Verify user has access to conversation
+            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
 
-            return response()->json([
-                'success' => true,
-                'data' => $stats
-            ]);
+            $stats = [
+                'total_messages' => $conversation->messages()->count(),
+                'total_attachments' => $conversation->messages()->whereNotNull('attachments')->count(),
+                'participants_count' => $conversation->activeParticipants()->count(),
+                'unread_count' => $conversation->getUnreadCountForUser(auth()->id()),
+                'created_at' => $conversation->created_at,
+                'last_activity' => $conversation->last_message_at
+            ];
+
+            return $this->success($stats, 'Conversation statistics retrieved successfully');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get conversation statistics',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            Log::error('Failed to get conversation stats: ' . $e->getMessage());
+            return $this->error('Failed to retrieve conversation statistics', $e->getMessage(), 500);
         }
     }
 
     /**
      * Search messages within conversation
      */
-    public function searchMessages(Request $request, $conversationId): JsonResponse
+    public function searchMessages($conversationId, Request $request): JsonResponse
     {
         try {
-            $request->validate([
-                'search' => 'required|string|min:2|max:255',
-                'page' => 'nullable|integer|min:1'
-            ]);
+            // Verify user has access to conversation
+            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
 
-            $messages = $this->messageService->searchMessages(
-                $conversationId,
-                auth()->id(),
-                $request->search,
-                $request->get('page', 1)
-            );
+            $searchTerm = $request->get('q', '');
+            $page = $request->get('page', 1);
 
-            return response()->json([
-                'success' => true,
-                'data' => $messages->items(),
-                'meta' => [
-                    'current_page' => $messages->currentPage(),
-                    'last_page' => $messages->lastPage(),
-                    'per_page' => $messages->perPage(),
-                    'total' => $messages->total()
-                ]
-            ]);
+            $messages = PbcMessage::with(['sender:id,name,role'])
+                ->forConversation($conversationId)
+                ->where('message', 'like', "%{$searchTerm}%")
+                ->orderBy('created_at', 'desc')
+                ->paginate(20, ['*'], 'page', $page);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
+            return $this->paginated($messages, 'Messages found successfully');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to search messages',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            Log::error('Failed to search messages: ' . $e->getMessage());
+            return $this->error('Failed to search messages', $e->getMessage(), 500);
         }
     }
 
     /**
      * Get conversation attachments
      */
-    public function getConversationAttachments(Request $request, $conversationId): JsonResponse
-    {
-        try {
-            $request->validate([
-                'page' => 'nullable|integer|min:1'
-            ]);
-
-            $attachments = $this->messageService->getConversationAttachments(
-                $conversationId,
-                auth()->id(),
-                $request->get('page', 1)
-            );
-
-            return response()->json([
-                'success' => true,
-                'data' => $attachments->items(),
-                'meta' => [
-                    'current_page' => $attachments->currentPage(),
-                    'last_page' => $attachments->lastPage(),
-                    'per_page' => $attachments->perPage(),
-                    'total' => $attachments->total()
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get conversation attachments',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Download message attachment
-     */
-    public function downloadAttachment($conversationId, $messageId, $attachmentId): JsonResponse
+    public function getConversationAttachments($conversationId, Request $request): JsonResponse
     {
         try {
             // Verify user has access to conversation
             $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
 
-            // Get the message and verify it belongs to this conversation
-            $message = PbcMessage::where('conversation_id', $conversationId)
-                                 ->findOrFail($messageId);
+            $page = $request->get('page', 1);
 
-            // Find the attachment
-            $attachments = $message->attachments ?? [];
-            $attachment = collect($attachments)->firstWhere('id', $attachmentId);
+            $messages = PbcMessage::with(['sender:id,name,role'])
+                ->forConversation($conversationId)
+                ->whereNotNull('attachments')
+                ->orderBy('created_at', 'desc')
+                ->paginate(20, ['*'], 'page', $page);
 
-            if (!$attachment) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Attachment not found'
-                ], 404);
-            }
-
-            // Check if file exists
-            if (!Storage::disk('public')->exists($attachment['path'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'File not found on server'
-                ], 404);
-            }
-
-            return Storage::disk('public')->download(
-                $attachment['path'],
-                $attachment['name']
-            );
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Message or conversation not found'
-            ], 404);
+            return $this->paginated($messages, 'Attachments retrieved successfully');
 
         } catch (\Exception $e) {
-            \Log::error('MessageController::downloadAttachment failed', [
-                'user_id' => auth()->id(),
-                'conversation_id' => $conversationId,
-                'message_id' => $messageId,
-                'attachment_id' => $attachmentId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to download attachment',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Add participant to conversation
-     */
-    public function addParticipant(Request $request, $conversationId): JsonResponse
-    {
-        try {
-            $request->validate([
-                'user_id' => 'required|exists:users,id',
-                'role' => 'nullable|in:participant,moderator,observer'
-            ]);
-
-            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
-
-            // Check permission
-            if (!auth()->user()->hasPermission('manage_conversations') &&
-                $conversation->created_by !== auth()->id()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You do not have permission to add participants'
-                ], 403);
-            }
-
-            // Check if user is already a participant
-            if ($conversation->participants()->where('user_id', $request->user_id)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User is already a participant in this conversation'
-                ], 422);
-            }
-
-            $conversation->addParticipant($request->user_id, $request->get('role', 'participant'));
-
-            // Clear cache
-            Cache::forget("user_conversations_{$request->user_id}");
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Participant added successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to add participant',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Remove participant from conversation
-     */
-    public function removeParticipant(Request $request, $conversationId, $userId): JsonResponse
-    {
-        try {
-            $conversation = PbcConversation::forUser(auth()->id())->findOrFail($conversationId);
-
-            // Check permission
-            if (!auth()->user()->hasPermission('manage_conversations') &&
-                $conversation->created_by !== auth()->id()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You do not have permission to remove participants'
-                ], 403);
-            }
-
-            // Cannot remove the creator
-            if ($conversation->created_by == $userId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot remove conversation creator'
-                ], 422);
-            }
-
-            $conversation->removeParticipant($userId);
-
-            // Clear cache
-            Cache::forget("user_conversations_{$userId}");
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Participant removed successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to remove participant',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Get available users for conversation
-     */
-    public function getAvailableUsers(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'search' => 'nullable|string|max:255',
-                'exclude_conversation' => 'nullable|exists:pbc_conversations,id'
-            ]);
-
-            $query = User::select('id', 'name', 'email', 'role')
-                         ->where('is_active', true)
-                         ->where('id', '!=', auth()->id());
-
-            // Exclude users already in conversation
-            if ($request->exclude_conversation) {
-                $conversation = PbcConversation::find($request->exclude_conversation);
-                if ($conversation) {
-                    $existingParticipants = $conversation->participants()->pluck('user_id')->toArray();
-                    $query->whereNotIn('id', $existingParticipants);
-                }
-            }
-
-            // Search filter
-            if ($request->search) {
-                $query->where(function ($q) use ($request) {
-                    $q->where('name', 'like', "%{$request->search}%")
-                      ->orWhere('email', 'like', "%{$request->search}%");
-                });
-            }
-
-            $users = $query->orderBy('name')->limit(50)->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $users
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get available users',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            Log::error('Failed to get attachments: ' . $e->getMessage());
+            return $this->error('Failed to retrieve attachments', $e->getMessage(), 500);
         }
     }
 }

@@ -5,173 +5,8 @@
 @section('page-title', 'Messages')
 @section('page-subtitle', 'Communication Center')
 
-@section('content')
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow-sm" style="height: calc(100vh - 250px);">
-            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-comments text-primary mr-2"></i>Messages
-                </h5>
-                <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createConversationModal">
-                    <i class="fas fa-plus mr-1"></i>New Conversation
-                </button>
-            </div>
-
-            <div class="card-body p-0" style="height: 100%;">
-                <div class="row no-gutters h-100">
-                    <!-- Conversations Sidebar -->
-                    <div class="col-md-4 border-right" style="background: #f8f9fa;">
-                        <!-- Search Box -->
-                        <div class="p-3 border-bottom">
-                            <div class="input-group">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text bg-white border-right-0">
-                                        <i class="fas fa-search text-muted"></i>
-                                    </span>
-                                </div>
-                                <input type="text" class="form-control border-left-0" placeholder="Search conversations..." id="conversationSearch">
-                            </div>
-                        </div>
-
-                        <!-- Conversations List -->
-                        <div id="conversationsList" style="height: calc(100% - 80px); overflow-y: auto;">
-                            <div class="text-center p-4">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="sr-only">Loading...</span>
-                                </div>
-                                <p class="mt-2 text-muted">Loading conversations...</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Chat Area -->
-                    <div class="col-md-8 d-flex flex-column">
-                        <!-- Welcome State -->
-                        <div id="welcomeState" class="d-flex align-items-center justify-content-center h-100 flex-column">
-                            <i class="fas fa-comments fa-4x text-muted mb-3"></i>
-                            <h4 class="text-muted">Welcome to Messages</h4>
-                            <p class="text-muted">Select a conversation to start messaging</p>
-                        </div>
-
-                        <!-- Chat Container -->
-                        <div id="chatContainer" class="d-flex flex-column h-100" style="display: none !important;">
-                            <!-- Chat Header -->
-                            <div class="chat-header bg-white border-bottom p-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 id="chatTitle" class="mb-0 font-weight-bold"></h6>
-                                        <small id="chatSubtitle" class="text-muted"></small>
-                                    </div>
-                                    <div class="btn-group">
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="markAllAsRead()" title="Mark all as read">
-                                            <i class="fas fa-check-double"></i>
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="showConversationInfo()" title="Conversation info">
-                                            <i class="fas fa-info-circle"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Messages List -->
-                            <div class="flex-grow-1 p-3" id="messagesList" style="overflow-y: auto; background: #f8f9fa;">
-                                <div class="text-center p-4">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="sr-only">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 text-muted">Loading messages...</p>
-                                </div>
-                            </div>
-
-                            <!-- Message Input -->
-                            <div class="bg-white border-top p-3">
-                                <form id="messageForm" enctype="multipart/form-data">
-                                    <div class="input-group">
-                                        <input type="file" id="attachmentInput" multiple style="display: none" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
-                                        <div class="input-group-prepend">
-                                            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('attachmentInput').click()" title="Attach files">
-                                                <i class="fas fa-paperclip"></i>
-                                            </button>
-                                        </div>
-                                        <input type="text" class="form-control" id="messageInput" placeholder="Type your message..." maxlength="5000">
-                                        <div class="input-group-append">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-paper-plane"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="attachmentPreview" class="mt-2"></div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create Conversation Modal -->
-<div class="modal fade" id="createConversationModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-plus-circle text-primary mr-2"></i>Create New Conversation
-                </h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <form id="createConversationForm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="clientSelect">
-                            <i class="fas fa-building text-muted mr-1"></i>Client *
-                        </label>
-                        <select id="clientSelect" class="form-control" required>
-                            <option value="">Select Client</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="projectSelect">
-                            <i class="fas fa-project-diagram text-muted mr-1"></i>Project *
-                        </label>
-                        <select id="projectSelect" class="form-control" required>
-                            <option value="">Select Project</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="participantsSelect">
-                            <i class="fas fa-users text-muted mr-1"></i>Participants *
-                        </label>
-                        <select id="participantsSelect" class="form-control" multiple required style="height: 120px;">
-                        </select>
-                        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple participants</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="conversationTitle">
-                            <i class="fas fa-tag text-muted mr-1"></i>Custom Title (Optional)
-                        </label>
-                        <input type="text" id="conversationTitle" class="form-control" placeholder="Leave empty to auto-generate">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
-                        <i class="fas fa-plus mr-1"></i>Create Conversation
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Alert Container -->
-<div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1060; max-width: 300px;"></div>
-
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 .conversation-item {
     padding: 15px;
@@ -338,8 +173,170 @@
     }
 }
 </style>
+@endpush
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+@section('content')
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm" style="height: calc(100vh - 250px);">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-comments text-primary me-2"></i>Messages
+                </h5>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createConversationModal">
+                    <i class="fas fa-plus me-1"></i>New Conversation
+                </button>
+            </div>
+
+            <div class="card-body p-0" style="height: 100%;">
+                <div class="row g-0 h-100">
+                    <!-- Conversations Sidebar -->
+                    <div class="col-md-4 border-end" style="background: #f8f9fa;">
+                        <!-- Search Box -->
+                        <div class="p-3 border-bottom">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="fas fa-search text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0" placeholder="Search conversations..." id="conversationSearch">
+                            </div>
+                        </div>
+
+                        <!-- Conversations List -->
+                        <div id="conversationsList" style="height: calc(100% - 80px); overflow-y: auto;">
+                            <div class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading conversations...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Area -->
+                    <div class="col-md-8 d-flex flex-column">
+                        <!-- Welcome State -->
+                        <div id="welcomeState" class="d-flex align-items-center justify-content-center h-100 flex-column">
+                            <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">Welcome to Messages</h4>
+                            <p class="text-muted">Select a conversation to start messaging</p>
+                        </div>
+
+                        <!-- Chat Container -->
+                        <div id="chatContainer" class="d-flex flex-column h-100" style="display: none !important;">
+                            <!-- Chat Header -->
+                            <div class="chat-header bg-white border-bottom p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 id="chatTitle" class="mb-0 fw-bold"></h6>
+                                        <small id="chatSubtitle" class="text-muted"></small>
+                                    </div>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="markAllAsRead()" title="Mark all as read">
+                                            <i class="fas fa-check-double"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="showConversationInfo()" title="Conversation info">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Messages List -->
+                            <div class="flex-grow-1 p-3" id="messagesList" style="overflow-y: auto; background: #f8f9fa;">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Loading messages...</p>
+                                </div>
+                            </div>
+
+                            <!-- Message Input -->
+                            <div class="bg-white border-top p-3">
+                                <form id="messageForm" enctype="multipart/form-data">
+                                    <div class="input-group">
+                                        <input type="file" id="attachmentInput" multiple style="display: none" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('attachmentInput').click()" title="Attach files">
+                                            <i class="fas fa-paperclip"></i>
+                                        </button>
+                                        <input type="text" class="form-control" id="messageInput" placeholder="Type your message..." maxlength="5000">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                    <div id="attachmentPreview" class="mt-2"></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Conversation Modal -->
+<div class="modal fade" id="createConversationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>Create New Conversation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createConversationForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="clientSelect" class="form-label">
+                            <i class="fas fa-building text-muted me-1"></i>Client *
+                        </label>
+                        <select id="clientSelect" class="form-select" required>
+                            <option value="">Select Client</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectSelect" class="form-label">
+                            <i class="fas fa-project-diagram text-muted me-1"></i>Project *
+                        </label>
+                        <select id="projectSelect" class="form-select" required>
+                            <option value="">Select Project</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="participantsSelect" class="form-label">
+                            <i class="fas fa-users text-muted me-1"></i>Participants *
+                        </label>
+                        <select id="participantsSelect" class="form-select" multiple required style="height: 120px;">
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple participants</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="conversationTitle" class="form-label">
+                            <i class="fas fa-tag text-muted me-1"></i>Custom Title (Optional)
+                        </label>
+                        <input type="text" id="conversationTitle" class="form-control" placeholder="Leave empty to auto-generate">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="fas fa-plus me-1"></i>Create Conversation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container -->
+<div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1060; max-width: 300px;"></div>
+@endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Global variables
 let currentConversationId = null;
@@ -348,21 +345,58 @@ let users = [];
 let clients = [];
 let projects = [];
 const currentUserId = {{ auth()->id() }};
-
-// CSRF token setup
-$.ajaxSetup({
-    headers: {
-        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-    }
-});
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
 // Initialize the application
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('Messages app initializing...');
     loadInitialData();
     setupEventListeners();
     startAutoRefresh();
 });
+
+// API helper function using web routes
+async function apiCall(url, options = {}) {
+    if (!csrfToken) {
+        throw new Error('CSRF token not found');
+    }
+
+    const defaultOptions = {
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    };
+
+    if (options.method === 'POST' && options.body && !(options.body instanceof FormData)) {
+        defaultOptions.headers['Content-Type'] = 'application/json';
+        if (typeof options.body === 'object') {
+            options.body = JSON.stringify(options.body);
+        }
+    }
+
+    try {
+        const response = await fetch(url, {
+            ...defaultOptions,
+            ...options,
+            headers: {
+                ...defaultOptions.headers,
+                ...options.headers
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('API call failed:', error);
+        throw error;
+    }
+}
 
 // Load initial data
 async function loadInitialData() {
@@ -386,7 +420,7 @@ async function loadInitialData() {
 async function loadConversations() {
     try {
         console.log('Loading conversations...');
-        const response = await $.get('/api/v1/messages/conversations');
+        const response = await apiCall('/messages/conversations');
         console.log('Conversations response:', response);
 
         if (response.success) {
@@ -397,22 +431,22 @@ async function loadConversations() {
         }
     } catch (error) {
         console.error('Error loading conversations:', error);
-        $('#conversationsList').html(`
+        document.getElementById('conversationsList').innerHTML = `
             <div class="empty-conversations">
                 <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
                 <h6>Failed to load conversations</h6>
                 <button class="btn btn-sm btn-primary mt-2" onclick="loadConversations()">
-                    <i class="fas fa-redo mr-1"></i>Retry
+                    <i class="fas fa-redo me-1"></i>Retry
                 </button>
             </div>
-        `);
+        `;
     }
 }
 
 // Load users
 async function loadUsers() {
     try {
-        const response = await $.get('/api/v1/messages/available-users');
+        const response = await apiCall('/messages/users');
         if (response.success) {
             users = response.data;
             console.log('Users loaded:', users.length);
@@ -425,9 +459,9 @@ async function loadUsers() {
 // Load clients
 async function loadClients() {
     try {
-        const response = await $.get('/api/v1/clients');
+        const response = await apiCall('/messages/clients');
         if (response.success) {
-            clients = response.data.data || response.data;
+            clients = response.data;
             console.log('Clients loaded:', clients.length);
         }
     } catch (error) {
@@ -438,9 +472,9 @@ async function loadClients() {
 // Load projects
 async function loadProjects() {
     try {
-        const response = await $.get('/api/v1/projects');
+        const response = await apiCall('/messages/projects');
         if (response.success) {
-            projects = response.data.data || response.data;
+            projects = response.data;
             console.log('Projects loaded:', projects.length);
         }
     } catch (error) {
@@ -450,19 +484,19 @@ async function loadProjects() {
 
 // Render conversations
 function renderConversations() {
-    const container = $('#conversationsList');
+    const container = document.getElementById('conversationsList');
 
     if (conversations.length === 0) {
-        container.html(`
+        container.innerHTML = `
             <div class="empty-conversations">
                 <i class="fas fa-comments fa-3x text-muted mb-3"></i>
                 <h6>No conversations yet</h6>
                 <p class="small text-muted">Start a new conversation with your team</p>
-                <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createConversationModal">
-                    <i class="fas fa-plus mr-1"></i>Start Conversation
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createConversationModal">
+                    <i class="fas fa-plus me-1"></i>Start Conversation
                 </button>
             </div>
-        `);
+        `;
         return;
     }
 
@@ -485,17 +519,17 @@ function renderConversations() {
                         </div>
                         <div class="conversation-preview">${truncate(lastMessage, 60)}</div>
                         <small class="text-muted">
-                            <i class="fas fa-building mr-1"></i>${conv.client?.name} •
-                            <i class="fas fa-project-diagram mr-1"></i>${conv.project?.engagement_type || 'Project'}
+                            <i class="fas fa-building me-1"></i>${conv.client?.name} •
+                            <i class="fas fa-project-diagram me-1"></i>${conv.project?.engagement_type || 'Project'}
                         </small>
                     </div>
-                    <small class="text-muted ml-2">${timeAgo}</small>
+                    <small class="text-muted ms-2">${timeAgo}</small>
                 </div>
             </div>
         `;
     }).join('');
 
-    container.html(html);
+    container.innerHTML = html;
 }
 
 // Select conversation
@@ -504,12 +538,14 @@ async function selectConversation(conversationId) {
     currentConversationId = conversationId;
 
     // Update UI
-    $('.conversation-item').removeClass('active');
-    $(`.conversation-item[data-id="${conversationId}"]`).addClass('active');
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`.conversation-item[data-id="${conversationId}"]`)?.classList.add('active');
 
     // Show chat container, hide welcome
-    $('#welcomeState').hide();
-    $('#chatContainer').show();
+    document.getElementById('welcomeState').style.display = 'none';
+    document.getElementById('chatContainer').style.display = 'flex';
 
     // Load conversation details and messages
     await loadConversationDetails(conversationId);
@@ -522,11 +558,11 @@ async function selectConversation(conversationId) {
 // Load conversation details
 async function loadConversationDetails(conversationId) {
     try {
-        const response = await $.get(`/api/v1/messages/conversations/${conversationId}`);
+        const response = await apiCall(`/messages/conversations/${conversationId}`);
         if (response.success) {
             const conv = response.data;
-            $('#chatTitle').text(conv.title || `${conv.client?.name} - ${conv.project?.name}`);
-            $('#chatSubtitle').text(`${conv.participants?.length || 0} participants • ${conv.status}`);
+            document.getElementById('chatTitle').textContent = conv.title || `${conv.client?.name} - ${conv.project?.name}`;
+            document.getElementById('chatSubtitle').textContent = `${conv.participants?.length || 0} participants • ${conv.status}`;
         }
     } catch (error) {
         console.error('Error loading conversation details:', error);
@@ -536,44 +572,44 @@ async function loadConversationDetails(conversationId) {
 // Load messages
 async function loadMessages(conversationId) {
     try {
-        $('#messagesList').html(`
+        document.getElementById('messagesList').innerHTML = `
             <div class="text-center p-4">
                 <div class="spinner-border text-primary" role="status"></div>
                 <p class="mt-2 text-muted">Loading messages...</p>
             </div>
-        `);
+        `;
 
-        const response = await $.get(`/api/v1/messages/conversations/${conversationId}/messages`);
+        const response = await apiCall(`/messages/conversations/${conversationId}/messages`);
         if (response.success) {
             renderMessages(response.data);
             scrollToBottom();
         }
     } catch (error) {
         console.error('Error loading messages:', error);
-        $('#messagesList').html(`
+        document.getElementById('messagesList').innerHTML = `
             <div class="empty-messages">
                 <i class="fas fa-exclamation-circle text-danger fa-2x mb-2"></i>
                 <h6>Failed to load messages</h6>
                 <button class="btn btn-sm btn-primary mt-2" onclick="loadMessages(${conversationId})">
-                    <i class="fas fa-redo mr-1"></i>Retry
+                    <i class="fas fa-redo me-1"></i>Retry
                 </button>
             </div>
-        `);
+        `;
     }
 }
 
 // Render messages
 function renderMessages(messages) {
-    const container = $('#messagesList');
+    const container = document.getElementById('messagesList');
 
     if (messages.length === 0) {
-        container.html(`
+        container.innerHTML = `
             <div class="empty-messages">
                 <i class="fas fa-comment fa-2x text-muted mb-3"></i>
                 <h6>No messages yet</h6>
                 <p class="text-muted">Start the conversation!</p>
             </div>
-        `);
+        `;
         return;
     }
 
@@ -607,7 +643,7 @@ function renderMessages(messages) {
         `;
     }).join('');
 
-    container.html(html);
+    container.innerHTML = html;
 }
 
 // Send message
@@ -627,15 +663,12 @@ async function sendMessage(messageText, attachments = []) {
         });
 
         // Disable form
-        $('#messageInput').prop('disabled', true);
-        $('button[type="submit"]').prop('disabled', true);
+        document.getElementById('messageInput').disabled = true;
+        document.querySelector('button[type="submit"]').disabled = true;
 
-        const response = await $.ajax({
-            url: '/api/v1/messages/send',
+        const response = await apiCall('/messages/send', {
             method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false
+            body: formData
         });
 
         if (response.success) {
@@ -644,10 +677,11 @@ async function sendMessage(messageText, attachments = []) {
             await loadConversations();
 
             // Clear form
-            $('#messageInput').val('').prop('disabled', false);
-            $('#attachmentInput').val('');
-            $('#attachmentPreview').empty();
-            $('button[type="submit"]').prop('disabled', false);
+            document.getElementById('messageInput').value = '';
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('attachmentInput').value = '';
+            document.getElementById('attachmentPreview').innerHTML = '';
+            document.querySelector('button[type="submit"]').disabled = false;
 
             showAlert('Message sent successfully', 'success', 2000);
         }
@@ -656,16 +690,15 @@ async function sendMessage(messageText, attachments = []) {
         showAlert('Failed to send message', 'danger');
 
         // Re-enable form
-        $('#messageInput').prop('disabled', false);
-        $('button[type="submit"]').prop('disabled', false);
+        document.getElementById('messageInput').disabled = false;
+        document.querySelector('button[type="submit"]').disabled = false;
     }
 }
 
 // Mark conversation as read
 async function markConversationAsRead(conversationId) {
     try {
-        await $.ajax({
-            url: `/api/v1/messages/conversations/${conversationId}/read-all`,
+        await apiCall(`/messages/conversations/${conversationId}/read`, {
             method: 'PUT'
         });
         await loadConversations();
@@ -684,67 +717,72 @@ async function markAllAsRead() {
 // Setup event listeners
 function setupEventListeners() {
     // Message form
-    $('#messageForm').on('submit', function(e) {
+    document.getElementById('messageForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const messageText = $('#messageInput').val();
+        const messageText = document.getElementById('messageInput').value;
         const attachments = Array.from(document.getElementById('attachmentInput').files);
         sendMessage(messageText, attachments);
     });
 
     // Enter to send
-    $('#messageInput').on('keypress', function(e) {
+    document.getElementById('messageInput').addEventListener('keypress', function(e) {
         if (e.which === 13 && !e.shiftKey) {
             e.preventDefault();
-            $('#messageForm').submit();
+            document.getElementById('messageForm').dispatchEvent(new Event('submit'));
         }
     });
 
     // Attachment preview
-    $('#attachmentInput').on('change', function() {
+    document.getElementById('attachmentInput').addEventListener('change', function() {
         const files = Array.from(this.files);
-        const preview = $('#attachmentPreview');
+        const preview = document.getElementById('attachmentPreview');
 
         if (files.length > 0) {
             const html = files.map(file => `
-                <span class="badge badge-secondary mr-1">
+                <span class="badge bg-secondary me-1">
                     <i class="fas fa-paperclip"></i> ${file.name}
                 </span>
             `).join('');
-            preview.html(`<div class="mt-2">Attachments: ${html}</div>`);
+            preview.innerHTML = `<div class="mt-2">Attachments: ${html}</div>`;
         } else {
-            preview.empty();
+            preview.innerHTML = '';
         }
     });
 
     // Search conversations
-    $('#conversationSearch').on('input', function() {
-        const searchTerm = $(this).val().toLowerCase();
-        $('.conversation-item').each(function() {
-            const text = $(this).text().toLowerCase();
-            $(this).toggle(text.includes(searchTerm));
+    document.getElementById('conversationSearch').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        document.querySelectorAll('.conversation-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(searchTerm) ? 'block' : 'none';
         });
     });
 
     // Create conversation form
-    $('#createConversationForm').on('submit', async function(e) {
+    document.getElementById('createConversationForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const formData = {
-            client_id: $('#clientSelect').val(),
-            project_id: $('#projectSelect').val(),
-            participant_ids: $('#participantsSelect').val(),
-            title: $('#conversationTitle').val()
+            client_id: document.getElementById('clientSelect').value,
+            project_id: document.getElementById('projectSelect').value,
+            participant_ids: Array.from(document.getElementById('participantsSelect').selectedOptions).map(opt => opt.value),
+            title: document.getElementById('conversationTitle').value
         };
 
-        const submitBtn = $(this).find('button[type="submit"]');
-        const spinner = submitBtn.find('.spinner-border');
-        spinner.removeClass('d-none');
-        submitBtn.prop('disabled', true);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const spinner = submitBtn.querySelector('.spinner-border');
+        spinner.classList.remove('d-none');
+        submitBtn.disabled = true;
 
         try {
-            const response = await $.post('/api/v1/messages/conversations', formData);
+            const response = await apiCall('/messages/conversations', {
+                method: 'POST',
+                body: formData
+            });
+
             if (response.success) {
-                $('#createConversationModal').modal('hide');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createConversationModal'));
+                modal.hide();
                 await loadConversations();
                 selectConversation(response.data.id);
                 showAlert('Conversation created successfully!', 'success');
@@ -752,23 +790,23 @@ function setupEventListeners() {
             }
         } catch (error) {
             console.error('Error creating conversation:', error);
-            const errorMsg = error.responseJSON?.message || 'Failed to create conversation';
+            const errorMsg = error.message || 'Failed to create conversation';
             showAlert(errorMsg, 'danger');
         } finally {
-            spinner.addClass('d-none');
-            submitBtn.prop('disabled', false);
+            spinner.classList.add('d-none');
+            submitBtn.disabled = false;
         }
     });
 
     // Client selection
-    $('#clientSelect').on('change', function() {
-        const clientId = $(this).val();
+    document.getElementById('clientSelect').addEventListener('change', function() {
+        const clientId = this.value;
         filterProjects(clientId);
     });
 
     // Modal reset
-    $('#createConversationModal').on('hidden.bs.modal', function() {
-        $('#createConversationForm')[0].reset();
+    document.getElementById('createConversationModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('createConversationForm').reset();
         filterProjects('');
     });
 }
@@ -779,7 +817,7 @@ function populateCreateConversationForm() {
     const clientOptions = clients.map(client =>
         `<option value="${client.id}">${client.name}</option>`
     ).join('');
-    $('#clientSelect').html('<option value="">Select Client</option>' + clientOptions);
+    document.getElementById('clientSelect').innerHTML = '<option value="">Select Client</option>' + clientOptions;
 
     // Projects
     const projectOptions = projects.map(project => {
@@ -787,26 +825,27 @@ function populateCreateConversationForm() {
         const clientName = clients.find(c => c.id === project.client_id)?.name || 'Unknown Client';
         return `<option value="${project.id}" data-client="${project.client_id}">${projectName} (${clientName})</option>`;
     }).join('');
-    $('#projectSelect').html('<option value="">Select Project</option>' + projectOptions);
+    document.getElementById('projectSelect').innerHTML = '<option value="">Select Project</option>' + projectOptions;
 
     // Users
     const userOptions = users.map(user =>
         `<option value="${user.id}">${user.name} (${user.role.replace('_', ' ')})</option>`
     ).join('');
-    $('#participantsSelect').html(userOptions);
+    document.getElementById('participantsSelect').innerHTML = userOptions;
 }
 
 // Filter projects by client
 function filterProjects(clientId) {
-    $('#projectSelect option').each(function() {
-        const projectClientId = $(this).data('client');
+    const projectOptions = document.querySelectorAll('#projectSelect option');
+    projectOptions.forEach(option => {
+        const projectClientId = option.getAttribute('data-client');
         if (!clientId || projectClientId == clientId || !projectClientId) {
-            $(this).show();
+            option.style.display = 'block';
         } else {
-            $(this).hide();
+            option.style.display = 'none';
         }
     });
-    $('#projectSelect').val('');
+    document.getElementById('projectSelect').value = '';
 }
 
 // Show conversation info
@@ -824,3 +863,109 @@ function showConversationInfo() {
             <strong>Participants:</strong> ${participants}<br>
             <strong>Created:</strong> ${formatDate(conv.created_at)}
         `;
+
+        showAlert(info, 'info', 8000);
+    }
+}
+
+// Auto refresh
+function startAutoRefresh() {
+    setInterval(async () => {
+        if (currentConversationId) {
+            await loadMessages(currentConversationId);
+        }
+        await loadConversations();
+    }, 30000); // Refresh every 30 seconds
+}
+
+// Utility functions
+function scrollToBottom() {
+    const messagesList = document.getElementById('messagesList');
+    messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+function formatDate(timestamp) {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function truncate(text, length) {
+    return text.length > length ? text.substring(0, length) + '...' : text;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function downloadAttachment(conversationId, messageId, attachmentId) {
+    console.log('Download attachment:', { conversationId, messageId, attachmentId });
+    showAlert('Download functionality coming soon', 'info', 3000);
+}
+
+// Utility function to show alerts
+function showAlert(message, type = 'info', duration = 3000) {
+    let alertContainer = document.getElementById('alertContainer');
+    if (!alertContainer) {
+        alertContainer = document.createElement('div');
+        alertContainer.id = 'alertContainer';
+        alertContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1060; max-width: 300px;';
+        document.body.appendChild(alertContainer);
+    }
+
+    const alertId = 'alert_' + Date.now();
+    const alertDiv = document.createElement('div');
+    alertDiv.id = alertId;
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.cssText = 'margin-bottom: 10px;';
+
+    let iconClass;
+    switch(type) {
+        case 'success': iconClass = 'check-circle'; break;
+        case 'danger': iconClass = 'exclamation-circle'; break;
+        case 'warning': iconClass = 'exclamation-triangle'; break;
+        default: iconClass = 'info-circle';
+    }
+
+    alertDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${iconClass} me-2"></i>
+            <div>${message}</div>
+        </div>
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    `;
+
+    alertContainer.appendChild(alertDiv);
+
+    if (duration > 0) {
+        setTimeout(() => {
+            const alert = document.getElementById(alertId);
+            if (alert) {
+                alert.remove();
+            }
+        }, duration);
+    }
+}
+</script>
+@endpush

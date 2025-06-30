@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('pbc_messages', function (Blueprint $table) {
             $table->id();
             $table->foreignId('conversation_id')->constrained('pbc_conversations')->onDelete('cascade');
-            $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('sender_id')->nullable()->constrained('users')->onDelete('cascade'); // Made nullable
             $table->text('message')->nullable();
             $table->json('attachments')->nullable();
             $table->boolean('is_read')->default(false);

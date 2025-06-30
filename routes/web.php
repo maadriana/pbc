@@ -59,7 +59,17 @@ Route::middleware(['auth:web'])->group(function () {
 
     // Messages
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
-
+    // Messages routes (Web endpoints for AJAX calls)
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/conversations', [MessageController::class, 'getConversations'])->name('messages.conversations');
+    Route::get('/messages/users', [MessageController::class, 'getAvailableUsers'])->name('messages.users');
+    Route::get('/messages/clients', [MessageController::class, 'getClients'])->name('messages.clients');
+    Route::get('/messages/projects', [MessageController::class, 'getProjects'])->name('messages.projects');
+    Route::get('/messages/conversations/{id}', [MessageController::class, 'getConversation'])->name('messages.conversation');
+    Route::get('/messages/conversations/{id}/messages', [MessageController::class, 'getMessages'])->name('messages.conversation.messages');
+    Route::post('/messages/send', [MessageController::class, 'sendMessage'])->name('messages.send');
+    Route::post('/messages/conversations', [MessageController::class, 'createConversation'])->name('messages.create-conversation');
+    Route::put('/messages/conversations/{id}/read', [MessageController::class, 'markConversationAsRead'])->name('messages.mark-read');
     // Upload Center
     Route::get('/upload-center', [PbcDocumentController::class, 'uploadCenterPage'])->name('upload-center');
 

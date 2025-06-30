@@ -29,6 +29,11 @@ class MessageSeeder extends Seeder
             return;
         }
 
+        if (!$manager || !$associate || !$guest) {
+            $this->command->warn('⚠️  Missing required user roles. Please seed users first.');
+            return;
+        }
+
         // Create conversations
         $conversations = [];
 
@@ -88,40 +93,42 @@ class MessageSeeder extends Seeder
 
         $conversations[] = $conversation2;
 
-        // Conversation 3: Completed conversation
-        $conversation3 = PbcConversation::create([
-            'client_id' => $clients[2]->id,
-            'project_id' => $projects[2]->id,
-            'title' => $clients[2]->name . ' - Special Engagement',
-            'status' => 'completed',
-            'created_by' => $systemAdmin->id,
-            'last_message_at' => now()->subDays(1)
-        ]);
+        // Conversation 3: Completed conversation (only if system admin exists)
+        if ($systemAdmin) {
+            $conversation3 = PbcConversation::create([
+                'client_id' => $clients[2]->id,
+                'project_id' => $projects[2]->id,
+                'title' => $clients[2]->name . ' - Special Engagement',
+                'status' => 'completed',
+                'created_by' => $systemAdmin->id,
+                'last_message_at' => now()->subDays(1)
+            ]);
 
-        $conversation3->participants()->attach([
-            $systemAdmin->id => [
-                'joined_at' => now()->subWeek(),
-                'role' => 'moderator',
-                'is_active' => true
-            ],
-            $manager->id => [
-                'joined_at' => now()->subWeek(),
-                'role' => 'participant',
-                'is_active' => true
-            ],
-            $guest->id => [
-                'joined_at' => now()->subWeek(),
-                'role' => 'participant',
-                'is_active' => true
-            ]
-        ]);
+            $conversation3->participants()->attach([
+                $systemAdmin->id => [
+                    'joined_at' => now()->subWeek(),
+                    'role' => 'moderator',
+                    'is_active' => true
+                ],
+                $manager->id => [
+                    'joined_at' => now()->subWeek(),
+                    'role' => 'participant',
+                    'is_active' => true
+                ],
+                $guest->id => [
+                    'joined_at' => now()->subWeek(),
+                    'role' => 'participant',
+                    'is_active' => true
+                ]
+            ]);
 
-        $conversations[] = $conversation3;
+            $conversations[] = $conversation3;
+            $this->seedMessagesForConversation3($conversation3, $systemAdmin, $manager, $guest);
+        }
 
         // Create messages for each conversation
         $this->seedMessagesForConversation($conversation1, $manager, $associate, $guest);
         $this->seedMessagesForConversation2($conversation2, $manager, $guest);
-        $this->seedMessagesForConversation3($conversation3, $systemAdmin, $manager, $guest);
 
         $this->command->info('✅ Message data seeded successfully!');
         $this->command->info("Created " . count($conversations) . " conversations with sample messages");
@@ -129,10 +136,10 @@ class MessageSeeder extends Seeder
 
     private function seedMessagesForConversation($conversation, $manager, $associate, $guest)
     {
-        // System message
+        // System message - USE MANAGER ID instead of null
         PbcMessage::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => null,
+            'sender_id' => $manager->id,
             'message' => "Conversation created by {$manager->name}",
             'message_type' => 'system',
             'is_read' => false,
@@ -158,14 +165,14 @@ class MessageSeeder extends Seeder
             ],
             'is_read' => true,
             'read_at' => now()->subDays(5)->addMinutes(30),
-            'created_at' => now()->subDays(5)
+            'created_at' => now()->subDays(5)->addHours(1)
         ]);
 
         // Manager response
         PbcMessage::create([
             'conversation_id' => $conversation->id,
             'sender_id' => $manager->id,
-            'message' => 'Thank you for uploading the bank statements. I have reviewed them and they look complete. I\'m assigning Bob to handle the reconciliation review.',
+            'message' => 'Thank you for uploading the bank statements. I have reviewed them and they look complete. I\'m assigning ' . $associate->name . ' to handle the reconciliation review.',
             'message_type' => 'text',
             'is_read' => true,
             'read_at' => now()->subDays(4)->addHours(2),
@@ -195,9 +202,10 @@ class MessageSeeder extends Seeder
 
     private function seedMessagesForConversation2($conversation, $manager, $guest)
     {
+        // System message - USE MANAGER ID instead of null
         PbcMessage::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => null,
+            'sender_id' => $manager->id,
             'message' => "Conversation created by {$manager->name}",
             'message_type' => 'system',
             'is_read' => false,
@@ -211,7 +219,7 @@ class MessageSeeder extends Seeder
             'message_type' => 'text',
             'is_read' => true,
             'read_at' => now()->subDays(2),
-            'created_at' => now()->subDays(3)
+            'created_at' => now()->subDays(3)->addHours(1)
         ]);
 
         PbcMessage::create([
@@ -236,9 +244,10 @@ class MessageSeeder extends Seeder
 
     private function seedMessagesForConversation3($conversation, $systemAdmin, $manager, $guest)
     {
+        // System message - USE SYSTEM ADMIN ID instead of null
         PbcMessage::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => null,
+            'sender_id' => $systemAdmin->id,
             'message' => "Conversation created by {$systemAdmin->name}",
             'message_type' => 'system',
             'is_read' => false,
