@@ -59,7 +59,10 @@
                 <span class="nav-text">PBC Requests</span>
                 @php
                     try {
-                        $pendingCount = \App\Models\PbcRequest::where('status', 'pending')->count();
+                        // Use the correct PbcRequest model
+                        $pendingCount = \App\Models\PbcRequest::where('status', 'draft')
+                            ->orWhere('status', 'active')
+                            ->count();
                     } catch (\Exception $e) {
                         $pendingCount = 0;
                     }
@@ -87,12 +90,15 @@
 
             {{-- Document Review - Those who can approve documents --}}
             @if(auth()->user()->hasPermission('approve_document'))
-            <a href="#" class="nav-item">
+            <a href="{{ route('pbc-submissions.index') }}" class="nav-item {{ request()->routeIs('pbc-submissions.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-file-alt"></i></div>
                 <span class="nav-text">Document Review</span>
                 @php
                     try {
-                        $pendingDocs = \App\Models\PbcDocument::where('status', 'pending')->count();
+                        // Use the correct PbcSubmission model
+                        $pendingDocs = \App\Models\PbcSubmission::where('status', 'pending')
+                            ->orWhere('status', 'under_review')
+                            ->count();
                     } catch (\Exception $e) {
                         $pendingDocs = 0;
                     }
@@ -105,7 +111,7 @@
 
             {{-- Document Archive - Show for all users (different access levels) --}}
             @if(auth()->user()->hasPermission('view_document'))
-            <a href="#" class="nav-item">
+            <a href="{{ route('pbc-submissions.index') }}?status=accepted" class="nav-item">
                 <div class="nav-icon"><i class="fas fa-archive"></i></div>
                 <span class="nav-text">Document Archive</span>
             </a>
@@ -114,7 +120,7 @@
         @endif
 
         <!-- COMMUNICATION SECTION - All users can access messages -->
-        @if(auth()->user()->hasPermission('view_messages') || auth()->user()->hasPermission('receive_reminder'))
+        @if(auth()->user()->hasPermission('view_messages') || auth()->user()->hasPermission('receive_notifications'))
         <div class="nav-section">
             <div class="nav-section-title">Communication</div>
 
@@ -127,30 +133,29 @@
 
             {{-- Reminders - Show for users who can send reminders --}}
             @if(auth()->user()->hasPermission('send_reminder'))
-            <a href="#" class="nav-item">
+            <a href="{{ route('pbc-reminders.index') }}" class="nav-item {{ request()->routeIs('pbc-reminders.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-bell"></i></div>
                 <span class="nav-text">Reminders</span>
             </a>
-            @elseif(auth()->user()->hasPermission('receive_reminder'))
+            @elseif(auth()->user()->hasPermission('receive_notifications'))
             {{-- Guests can see reminders but can't send them --}}
-            <a href="#" class="nav-item">
+            <a href="{{ route('pbc-reminders.index') }}" class="nav-item {{ request()->routeIs('pbc-reminders.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-bell"></i></div>
-                <span class="nav-text">Reminders</span>
-                <span class="nav-text-small">(Receive Only)</span>
+                <span class="nav-text">My Reminders</span>
             </a>
             @endif
         </div>
         @endif
 
         <!-- REPORTS SECTION - Permission-based access -->
-        @if(auth()->user()->hasPermission('view_analytics') ||
+        @if(auth()->user()->hasPermission('view_dashboard') ||
             auth()->user()->hasPermission('view_audit_log') ||
             auth()->user()->hasPermission('export_reports'))
         <div class="nav-section">
             <div class="nav-section-title">Reports</div>
 
             {{-- Analytics - Show for all users (different data based on role) --}}
-            @if(auth()->user()->hasPermission('view_analytics'))
+            @if(auth()->user()->hasPermission('view_dashboard'))
             <a href="#" class="nav-item">
                 <div class="nav-icon"><i class="fas fa-chart-bar"></i></div>
                 <span class="nav-text">Analytics</span>
@@ -183,6 +188,14 @@
                 <div class="nav-icon"><i class="fas fa-cog"></i></div>
                 <span class="nav-text">Settings</span>
             </a>
+
+            {{-- PBC Categories - For system configuration --}}
+            @if(auth()->user()->hasPermission('manage_categories'))
+            <a href="{{ route('pbc-categories.index') }}" class="nav-item {{ request()->routeIs('pbc-categories.*') ? 'active' : '' }}">
+                <div class="nav-icon"><i class="fas fa-tags"></i></div>
+                <span class="nav-text">PBC Categories</span>
+            </a>
+            @endif
         </div>
         @endif
     </nav>

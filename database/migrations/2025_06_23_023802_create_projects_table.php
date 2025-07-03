@@ -22,6 +22,15 @@ return new class extends Migration
             $table->foreignId('associate_2_id')->nullable()->constrained('users')->onDelete('set null');
             $table->enum('status', ['active', 'completed', 'on_hold', 'cancelled'])->default('active');
             $table->decimal('progress_percentage', 5, 2)->default(0);
+
+            // NEW: PBC-related fields
+            $table->integer('total_pbc_requests')->default(0);
+            $table->integer('completed_pbc_requests')->default(0);
+            $table->decimal('pbc_completion_percentage', 5, 2)->default(0);
+            $table->date('pbc_deadline')->nullable(); // Overall PBC deadline
+            $table->enum('pbc_status', ['not_started', 'in_progress', 'completed', 'overdue'])->default('not_started');
+            $table->json('pbc_settings')->nullable(); // Project-specific PBC settings
+
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();

@@ -2,7 +2,7 @@
 
 @section('title', 'PBC Request Management')
 @section('page-title', 'PBC Request Management')
-@section('page-subtitle', 'Manage audit document requests, track submissions, and monitor progress')
+@section('page-subtitle', 'Manage document requests, track submissions, and monitor progress')
 
 @section('content')
 <div x-data="pbcRequestManagement()" x-init="init()">
@@ -18,9 +18,13 @@
                 Export Report
             </button>
             @if(auth()->user()->hasPermission('create_pbc_request'))
+            <button class="btn btn-success" @click="openCreateFromTemplateModal()" :disabled="loading">
+                <i class="fas fa-clipboard-check"></i>
+                Create from Template
+            </button>
             <button class="btn btn-primary" @click="openCreateModal()" :disabled="loading">
                 <i class="fas fa-plus"></i>
-                Add Request
+                Add Custom Request
             </button>
             @endif
         </div>
@@ -52,7 +56,7 @@
             </div>
             <div class="card-content">
                 <div class="card-number" x-text="stats.pending || 0"></div>
-                <div class="card-label">Pending</div>
+                <div class="card-label">Active</div>
             </div>
         </div>
         <div class="summary-card overdue">
@@ -76,7 +80,7 @@
                     <input
                         type="text"
                         class="filter-input search-input"
-                        placeholder="Search by title, description, or client..."
+                        placeholder="Search by title, client, or notes..."
                         x-model="filters.search"
                         @input.debounce.500ms="loadPbcRequests()"
                     >
@@ -94,11 +98,11 @@
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">Category</label>
-                <select class="filter-select" x-model="filters.category_id" @change="loadPbcRequests()">
-                    <option value="">All Categories</option>
-                    <template x-for="category in availableCategories" :key="category.id">
-                        <option :value="category.id" x-text="category.name"></option>
+                <label class="filter-label">Template</label>
+                <select class="filter-select" x-model="filters.template_id" @change="loadPbcRequests()">
+                    <option value="">All Templates</option>
+                    <template x-for="template in availableTemplates" :key="template.id">
+                        <option :value="template.id" x-text="template.name"></option>
                     </template>
                 </select>
             </div>
@@ -107,28 +111,16 @@
                 <label class="filter-label">Status</label>
                 <select class="filter-select" x-model="filters.status" @change="loadPbcRequests()">
                     <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
                     <option value="completed">Completed</option>
-                    <option value="overdue">Overdue</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label class="filter-label">Priority</label>
-                <select class="filter-select" x-model="filters.priority" @change="loadPbcRequests()">
-                    <option value="">All Priorities</option>
-                    <option value="urgent">Urgent</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
+                    <option value="cancelled">Cancelled</option>
                 </select>
             </div>
 
             <div class="filter-group">
                 <label class="filter-label">Assigned To</label>
-                <select class="filter-select" x-model="filters.assigned_to_id" @change="loadPbcRequests()">
+                <select class="filter-select" x-model="filters.assigned_to" @change="loadPbcRequests()">
                     <option value="">All Assignees</option>
                     <template x-for="user in availableUsers" :key="user.id">
                         <option :value="user.id" x-text="user.name + ' (' + formatRole(user.role) + ')'"></option>
@@ -175,15 +167,14 @@
                         <th>
                             <input type="checkbox" @change="toggleSelectAll($event)">
                         </th>
-                        <th>Category</th>
-                        <th>Request Description</th>
-                        <th>Requestor</th>
-                        <th>Date Requested</th>
+                        <th>Request Details</th>
+                        <th>Project & Client</th>
+                        <th>Template</th>
+                        <th>Progress</th>
                         <th>Assigned To</th>
                         <th>Due Date</th>
                         <th>Status</th>
                         <th>Actions</th>
-                        <th>Notes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -197,65 +188,78 @@
                                 >
                             </td>
                             <td>
-                                <div class="category-info">
-                                    <span class="category-badge"
-                                          :style="`background: ${request.category?.color_code || '#6B7280'}20; color: ${request.category?.color_code || '#6B7280'}`"
-                                          x-text="request.category?.code || 'N/A'"></span>
-                                    <div class="category-name" x-text="request.category?.name || 'Uncategorized'"></div>
-                                </div>
-                            </td>
-                            <td>
                                 <div class="request-info">
                                     <div class="request-title" x-text="request.title"></div>
-                                    <div class="request-description" x-text="truncateText(request.description, 80)"></div>
-                                    <div class="request-project" x-text="'Project: ' + (request.project?.client?.name || 'Unknown')"></div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="user-info">
-                                    <div class="user-name" x-text="request.requestor?.name || 'Unknown'"></div>
-                                    <div class="user-role" x-text="formatRole(request.requestor?.role || '')"></div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="date-text" x-text="formatDate(request.date_requested)"></span>
-                            </td>
-                            <td>
-                                <div class="user-info">
-                                    <div class="user-name" x-text="request.assigned_to?.name || 'Unassigned'"></div>
-                                    <div class="user-role" x-text="formatRole(request.assigned_to?.role || '')"></div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="due-date-info">
-                                    <span class="date-text" x-text="formatDate(request.due_date)"></span>
-                                    <div class="due-indicator" x-show="getDaysUntilDue(request) !== null">
-                                        <span :class="getDueBadgeClass(request)" x-text="getDueText(request)"></span>
+                                    <div class="request-meta">
+                                        <span class="meta-item">
+                                            <i class="fas fa-calendar-plus"></i>
+                                            Created <span x-text="formatDate(request.created_at)"></span>
+                                        </span>
+                                        <span class="meta-item" x-show="request.notes">
+                                            <i class="fas fa-sticky-note"></i>
+                                            <span x-text="truncateText(request.notes, 30)"></span>
+                                        </span>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <div class="status-priority">
-                                    <span class="status-badge" :class="`status-${request.status?.replace('_', '-')}`"
-                                          x-text="formatStatus(request.status)"></span>
-                                    <span class="priority-badge" :class="`priority-${request.priority}`"
-                                          x-text="formatPriority(request.priority)"></span>
+                                <div class="project-info">
+                                    <div class="client-name" x-text="request.client_name"></div>
+                                    <div class="project-details">
+                                        <span x-text="formatEngagementType(request.project?.engagement_type)"></span>
+                                        <span class="separator">•</span>
+                                        <span x-text="request.audit_period"></span>
+                                    </div>
                                 </div>
                             </td>
                             <td>
+                                <div class="template-info">
+                                    <span class="template-name" x-text="request.template?.name || 'Custom'"></span>
+                                    <div class="template-description" x-text="request.template?.description || 'Custom request'"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progress-info">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" :style="`width: ${request.completion_percentage || 0}%`"></div>
+                                    </div>
+                                    <div class="progress-text">
+                                        <span x-text="Math.round(request.completion_percentage || 0)"></span>%
+                                        (<span x-text="request.completed_items || 0"></span>/<span x-text="request.total_items || 0"></span>)
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="user-info" x-show="request.assignedTo">
+                                    <div class="user-name" x-text="request.assignedTo?.name"></div>
+                                    <div class="user-role" x-text="formatRole(request.assignedTo?.role)"></div>
+                                </div>
+                                <div x-show="!request.assignedTo" class="unassigned">Unassigned</div>
+                            </td>
+                            <td>
+                                <div class="due-date-info" x-show="request.due_date">
+                                    <span class="date-text" x-text="formatDate(request.due_date)"></span>
+                                    <div class="due-indicator">
+                                        <span :class="getDueBadgeClass(request)" x-text="getDueText(request)"></span>
+                                    </div>
+                                </div>
+                                <div x-show="!request.due_date" class="no-due-date">No due date</div>
+                            </td>
+                            <td>
+                                <span class="status-badge" :class="`status-${request.status}`" x-text="formatStatus(request.status)"></span>
+                            </td>
+                            <td>
                                 <div class="actions-cell">
-                                    @if(auth()->user()->hasPermission('view_pbc_request'))
                                     <button class="btn btn-xs btn-secondary" @click="viewRequest(request)" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    @endif
 
                                     @if(auth()->user()->hasPermission('edit_pbc_request'))
                                     <button class="btn btn-xs btn-warning" @click="editRequest(request)" title="Edit Request">
                                         <i class="fas fa-edit"></i>
                                     </button>
 
-                                    <template x-if="request.status === 'pending' || request.status === 'in_progress'">
+                                    <template x-if="request.status === 'draft' || request.status === 'active'">
                                         <button class="btn btn-xs btn-success" @click="completeRequest(request)" title="Mark as Complete">
                                             <i class="fas fa-check"></i>
                                         </button>
@@ -272,16 +276,17 @@
                                         <i class="fas fa-bell"></i>
                                     </button>
 
+                                    @if(auth()->user()->hasPermission('create_pbc_request'))
+                                    <button class="btn btn-xs btn-info" @click="duplicateRequest(request)" title="Duplicate Request">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    @endif
+
                                     @if(auth()->user()->hasPermission('delete_pbc_request'))
                                     <button class="btn btn-xs btn-danger" @click="deleteRequest(request)" title="Delete Request">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                     @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="notes-cell">
-                                    <span x-text="truncateText(request.notes || '', 50)" :title="request.notes"></span>
                                 </div>
                             </td>
                         </tr>
@@ -297,10 +302,16 @@
                 <h3>No PBC requests found</h3>
                 <p>Try adjusting your search criteria or create a new request.</p>
                 @if(auth()->user()->hasPermission('create_pbc_request'))
-                <button class="btn btn-primary" @click="openCreateModal()">
-                    <i class="fas fa-plus"></i>
-                    Create First Request
-                </button>
+                <div class="empty-actions">
+                    <button class="btn btn-primary" @click="openCreateFromTemplateModal()">
+                        <i class="fas fa-clipboard-check"></i>
+                        Create from Template
+                    </button>
+                    <button class="btn btn-secondary" @click="openCreateModal()">
+                        <i class="fas fa-plus"></i>
+                        Custom Request
+                    </button>
+                </div>
                 @endif
             </div>
         </div>
@@ -377,11 +388,102 @@
         </div>
     </div>
 
-    <!-- CREATE/EDIT REQUEST MODAL -->
-    <div class="modal-overlay" x-show="showModal" x-transition @click="closeModal()">
-        <div class="modal request-modal" @click.stop>
+    <!-- CREATE FROM TEMPLATE MODAL -->
+    <div class="modal-overlay" x-show="showTemplateModal" x-transition @click="closeTemplateModal()">
+        <div class="modal template-modal" @click.stop>
             <div class="modal-header">
-                <h3 class="modal-title" x-text="isEditing ? 'Edit PBC Request' : 'Create New PBC Request'"></h3>
+                <h3 class="modal-title">Create PBC Request from Template</h3>
+                <button class="modal-close" @click="closeTemplateModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form @submit.prevent="createFromTemplate()">
+                <div class="modal-body">
+                    <div class="form-section">
+                        <h4 class="form-section-title">Project & Template Selection</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Project *</label>
+                                <select class="form-select" x-model="templateForm.project_id" required @change="loadCompatibleTemplates()" :class="{ 'error': errors.project_id }">
+                                    <option value="">Select Project</option>
+                                    <template x-for="project in availableProjects" :key="project.id">
+                                        <option :value="project.id" x-text="(project.client?.name || 'Unknown Client') + ' - ' + formatEngagementType(project.engagement_type)"></option>
+                                    </template>
+                                </select>
+                                <div class="form-error" x-show="errors.project_id" x-text="errors.project_id"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Template *</label>
+                                <select class="form-select" x-model="templateForm.template_id" required :class="{ 'error': errors.template_id }">
+                                    <option value="">Select Template</option>
+                                    <template x-for="template in compatibleTemplates" :key="template.id">
+                                        <option :value="template.id" x-text="template.name + ' - ' + (template.description || 'No description')"></option>
+                                    </template>
+                                </select>
+                                <div class="form-error" x-show="errors.template_id" x-text="errors.template_id"></div>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="form-label">Title (Optional)</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    x-model="templateForm.title"
+                                    placeholder="Will be auto-generated if left empty"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4 class="form-section-title">Assignment & Timeline</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Assigned To</label>
+                                <select class="form-select" x-model="templateForm.assigned_to">
+                                    <option value="">Select Assignee</option>
+                                    <template x-for="user in availableUsers" :key="user.id">
+                                        <option :value="user.id" x-text="user.name + ' (' + formatRole(user.role) + ')'"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Due Date</label>
+                                <input
+                                    type="date"
+                                    class="form-input"
+                                    x-model="templateForm.due_date"
+                                    :min="new Date().toISOString().split('T')[0]"
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="closeTemplateModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" :disabled="saving">
+                        <span x-show="!saving">Create Request</span>
+                        <span x-show="saving">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Creating...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CUSTOM REQUEST MODAL -->
+    <div class="modal-overlay" x-show="showModal" x-transition @click="closeModal()">
+        <div class="modal custom-modal" @click.stop>
+            <div class="modal-header">
+                <h3 class="modal-title" x-text="isEditing ? 'Edit PBC Request' : 'Create Custom PBC Request'"></h3>
                 <button class="modal-close" @click="closeModal()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -389,9 +491,8 @@
 
             <form @submit.prevent="saveRequest()">
                 <div class="modal-body">
-                    <!-- REQUEST INFORMATION -->
                     <div class="form-section">
-                        <h4 class="form-section-title">Request Information</h4>
+                        <h4 class="form-section-title">Basic Information</h4>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Project *</label>
@@ -405,14 +506,13 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Category *</label>
-                                <select class="form-select" x-model="requestForm.category_id" required :class="{ 'error': errors.category_id }">
-                                    <option value="">Select Category</option>
-                                    <template x-for="category in availableCategories" :key="category.id">
-                                        <option :value="category.id" x-text="category.name + ' (' + category.code + ')'"></option>
+                                <label class="form-label">Template</label>
+                                <select class="form-select" x-model="requestForm.template_id">
+                                    <option value="">None (Custom Request)</option>
+                                    <template x-for="template in availableTemplates" :key="template.id">
+                                        <option :value="template.id" x-text="template.name"></option>
                                     </template>
                                 </select>
-                                <div class="form-error" x-show="errors.category_id" x-text="errors.category_id"></div>
                             </div>
 
                             <div class="form-group full-width">
@@ -427,64 +527,36 @@
                                 >
                                 <div class="form-error" x-show="errors.title" x-text="errors.title"></div>
                             </div>
-
-                            <div class="form-group full-width">
-                                <label class="form-label">Description *</label>
-                                <textarea
-                                    class="form-textarea"
-                                    x-model="requestForm.description"
-                                    required
-                                    placeholder="Describe what documents or information is needed"
-                                    rows="3"
-                                    :class="{ 'error': errors.description }"
-                                ></textarea>
-                                <div class="form-error" x-show="errors.description" x-text="errors.description"></div>
-                            </div>
                         </div>
                     </div>
 
-                    <!-- ASSIGNMENT & TIMELINE -->
                     <div class="form-section">
                         <h4 class="form-section-title">Assignment & Timeline</h4>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label class="form-label">Assigned To *</label>
-                                <select class="form-select" x-model="requestForm.assigned_to_id" required :class="{ 'error': errors.assigned_to_id }">
+                                <label class="form-label">Assigned To</label>
+                                <select class="form-select" x-model="requestForm.assigned_to">
                                     <option value="">Select Assignee</option>
                                     <template x-for="user in availableUsers" :key="user.id">
                                         <option :value="user.id" x-text="user.name + ' (' + formatRole(user.role) + ')'"></option>
                                     </template>
                                 </select>
-                                <div class="form-error" x-show="errors.assigned_to_id" x-text="errors.assigned_to_id"></div>
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Due Date *</label>
+                                <label class="form-label">Due Date</label>
                                 <input
                                     type="date"
                                     class="form-input"
                                     x-model="requestForm.due_date"
-                                    required
-                                    :class="{ 'error': errors.due_date }"
+                                    :min="new Date().toISOString().split('T')[0]"
                                 >
-                                <div class="form-error" x-show="errors.due_date" x-text="errors.due_date"></div>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Priority *</label>
-                                <select class="form-select" x-model="requestForm.priority" required>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- NOTES -->
                     <div class="form-section">
-                        <h4 class="form-section-title">Additional Notes</h4>
+                        <h4 class="form-section-title">Additional Information</h4>
                         <div class="form-group">
                             <label class="form-label">Notes</label>
                             <textarea
@@ -532,51 +604,60 @@
                             <span x-text="selectedRequest?.title"></span>
                         </div>
                         <div class="detail-item">
-                            <label>Category:</label>
-                            <span x-text="(selectedRequest?.category?.name || 'Unknown') + ' (' + (selectedRequest?.category?.code || 'N/A') + ')'"></span>
-                        </div>
-                        <div class="detail-item">
-                            <label>Project:</label>
-                            <span x-text="selectedRequest?.project?.client?.name || 'Unknown'"></span>
-                        </div>
-                        <div class="detail-item">
-                            <label>Priority:</label>
-                            <span x-text="formatPriority(selectedRequest?.priority)"></span>
+                            <label>Template:</label>
+                            <span x-text="selectedRequest?.template?.name || 'Custom Request'"></span>
                         </div>
                         <div class="detail-item">
                             <label>Status:</label>
-                            <span x-text="formatStatus(selectedRequest?.status)"></span>
+                            <span class="status-badge" :class="`status-${selectedRequest?.status}`" x-text="formatStatus(selectedRequest?.status)"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Progress:</label>
+                            <span x-text="Math.round(selectedRequest?.completion_percentage || 0) + '% (' + (selectedRequest?.completed_items || 0) + '/' + (selectedRequest?.total_items || 0) + ')'"></span>
                         </div>
                     </div>
 
                     <div class="detail-section">
-                        <h4>Assignment & Timeline</h4>
+                        <h4>Project & Timeline</h4>
                         <div class="detail-item">
-                            <label>Requested By:</label>
-                            <span x-text="selectedRequest?.requestor?.name || 'Unknown'"></span>
+                            <label>Client:</label>
+                            <span x-text="selectedRequest?.client_name"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Engagement:</label>
+                            <span x-text="formatEngagementType(selectedRequest?.project?.engagement_type)"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Period:</label>
+                            <span x-text="selectedRequest?.audit_period"></span>
                         </div>
                         <div class="detail-item">
                             <label>Assigned To:</label>
-                            <span x-text="selectedRequest?.assigned_to?.name || 'Unassigned'"></span>
-                        </div>
-                        <div class="detail-item">
-                            <label>Date Requested:</label>
-                            <span x-text="formatDate(selectedRequest?.date_requested)"></span>
+                            <span x-text="selectedRequest?.assignedTo?.name || 'Unassigned'"></span>
                         </div>
                         <div class="detail-item">
                             <label>Due Date:</label>
-                            <span x-text="formatDate(selectedRequest?.due_date)"></span>
+                            <span x-text="formatDate(selectedRequest?.due_date) || 'No due date'"></span>
                         </div>
-                    </div>
-
-                    <div class="detail-section full-width">
-                        <h4>Description</h4>
-                        <div class="detail-description" x-text="selectedRequest?.description"></div>
                     </div>
 
                     <div class="detail-section full-width" x-show="selectedRequest?.notes">
                         <h4>Notes</h4>
                         <div class="detail-notes" x-text="selectedRequest?.notes"></div>
+                    </div>
+
+                    <div class="detail-section full-width">
+                        <h4>Recent Activity</h4>
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Request created on <span x-text="formatDate(selectedRequest?.created_at)"></span></span>
+                            </div>
+                            <div class="activity-item" x-show="selectedRequest?.completed_at">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Completed on <span x-text="formatDate(selectedRequest?.completed_at)"></span></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -591,6 +672,10 @@
                     Edit Request
                 </button>
                 @endif
+                <button type="button" class="btn btn-info" @click="viewRequestItems()">
+                    <i class="fas fa-list"></i>
+                    View Items
+                </button>
             </div>
         </div>
     </div>
@@ -731,7 +816,7 @@
         font-weight: 500;
     }
 
-    /* Common styles from project management */
+    /* Buttons */
     .btn {
         padding: 0.75rem 1.5rem;
         border-radius: 8px;
@@ -771,6 +856,11 @@
         background: #E5E7EB;
     }
 
+    .btn-success {
+        background: #10B981;
+        color: white;
+    }
+
     .btn-warning {
         background: #F59E0B;
         color: white;
@@ -783,11 +873,6 @@
 
     .btn-info {
         background: #06B6D4;
-        color: white;
-    }
-
-    .btn-success {
-        background: #10B981;
         color: white;
     }
 
@@ -819,7 +904,7 @@
 
     .filters-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr auto;
+        grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
         gap: 1rem;
         align-items: end;
     }
@@ -889,7 +974,7 @@
         font-size: 2rem;
     }
 
-    /* PBC Requests Table */
+    /* Table */
     .pbc-requests-card {
         background: white;
         border-radius: 12px;
@@ -954,29 +1039,6 @@
     }
 
     /* Table Cell Content */
-    .category-info {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        min-width: 120px;
-    }
-
-    .category-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        text-align: center;
-        border: 1px solid currentColor;
-    }
-
-    .category-name {
-        font-size: 0.8rem;
-        color: #6B7280;
-        text-align: center;
-    }
-
     .request-info {
         min-width: 250px;
     }
@@ -988,17 +1050,85 @@
         line-height: 1.4;
     }
 
-    .request-description {
+    .request-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .meta-item {
+        font-size: 0.75rem;
+        color: #6B7280;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .meta-item i {
+        width: 12px;
+        color: #9CA3AF;
+    }
+
+    .project-info {
+        min-width: 200px;
+    }
+
+    .client-name {
+        font-weight: 600;
+        color: #1F2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .project-details {
         font-size: 0.8rem;
         color: #6B7280;
-        line-height: 1.4;
+    }
+
+    .separator {
+        margin: 0 0.5rem;
+        color: #9CA3AF;
+    }
+
+    .template-info {
+        min-width: 150px;
+    }
+
+    .template-name {
+        font-weight: 500;
+        color: #1F2937;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .template-description {
+        font-size: 0.75rem;
+        color: #6B7280;
+        line-height: 1.3;
+    }
+
+    .progress-info {
+        min-width: 120px;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #F3F4F6;
+        border-radius: 4px;
+        overflow: hidden;
         margin-bottom: 0.5rem;
     }
 
-    .request-project {
-        font-size: 0.75rem;
-        color: #9CA3AF;
-        font-style: italic;
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10B981, #059669);
+        transition: width 0.3s ease;
+    }
+
+    .progress-text {
+        font-size: 0.8rem;
+        color: #6B7280;
+        text-align: center;
     }
 
     .user-info {
@@ -1015,6 +1145,12 @@
         font-size: 0.75rem;
         color: #6B7280;
         text-transform: capitalize;
+    }
+
+    .unassigned, .no-due-date {
+        font-style: italic;
+        color: #9CA3AF;
+        font-size: 0.8rem;
     }
 
     .due-date-info {
@@ -1047,14 +1183,8 @@
         font-weight: 500;
     }
 
-    .status-priority {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        min-width: 100px;
-    }
-
-    .status-badge, .priority-badge {
+    /* Status badges */
+    .status-badge {
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
         font-size: 0.75rem;
@@ -1063,32 +1193,17 @@
         text-align: center;
     }
 
-    /* Status badges */
-    .status-pending { background: #FEF3C7; color: #92400E; }
-    .status-in-progress { background: #DBEAFE; color: #1E40AF; }
+    .status-draft { background: #F3F4F6; color: #6B7280; }
+    .status-active { background: #DBEAFE; color: #1E40AF; }
     .status-completed { background: #D1FAE5; color: #065F46; }
-    .status-overdue { background: #FEE2E2; color: #991B1B; }
-    .status-rejected { background: #FDE2E2; color: #991B1B; }
-
-    /* Priority badges */
-    .priority-low { background: #D1FAE5; color: #065F46; }
-    .priority-medium { background: #FEF3C7; color: #92400E; }
-    .priority-high { background: #FED7AA; color: #9A3412; }
-    .priority-urgent { background: #FEE2E2; color: #991B1B; }
+    .status-cancelled { background: #FEE2E2; color: #991B1B; }
 
     .actions-cell {
         display: flex;
         gap: 0.5rem;
         align-items: center;
         flex-wrap: wrap;
-        min-width: 160px;
-    }
-
-    .notes-cell {
-        min-width: 150px;
-        max-width: 200px;
-        font-size: 0.8rem;
-        color: #6B7280;
+        min-width: 200px;
     }
 
     /* Empty State */
@@ -1112,6 +1227,12 @@
 
     .empty-state p {
         margin-bottom: 2rem;
+    }
+
+    .empty-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
     }
 
     /* Pagination */
@@ -1208,19 +1329,19 @@
     .modal {
         background: white;
         border-radius: 16px;
-        max-width: 1000px;
+        max-width: 900px;
         width: 100%;
         max-height: 90vh;
         overflow-y: auto;
         box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
     }
 
-    .request-modal {
-        max-width: 1000px;
+    .template-modal, .custom-modal {
+        max-width: 800px;
     }
 
     .details-modal {
-        max-width: 800px;
+        max-width: 900px;
     }
 
     .small-modal {
@@ -1385,10 +1506,32 @@
         word-wrap: break-word;
     }
 
-    .detail-description, .detail-notes {
+    .detail-notes {
         color: #1F2937;
         line-height: 1.6;
         white-space: pre-wrap;
+    }
+
+    .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #F9FAFB;
+        border-radius: 8px;
+        border-left: 4px solid #3B82F6;
+    }
+
+    .activity-item i {
+        color: #3B82F6;
+        width: 16px;
+        text-align: center;
     }
 
     /* Responsive Design */
@@ -1398,12 +1541,11 @@
             gap: 1rem;
         }
 
-        .filters-grid .filter-group:nth-child(5),
-        .filters-grid .filter-group:nth-child(6) {
+        .filters-grid .filter-group:nth-child(5) {
             grid-column: span 2;
         }
 
-        .filters-grid .filter-group:nth-child(7) {
+        .filters-grid .filter-group:nth-child(6) {
             grid-column: span 4;
             justify-self: center;
         }
@@ -1472,7 +1614,8 @@
             pbcRequests: [],
             selectedRequests: [],
             availableProjects: [],
-            availableCategories: [],
+            availableTemplates: [],
+            compatibleTemplates: [],
             availableUsers: [],
             stats: {
                 total: 0,
@@ -1483,12 +1626,11 @@
             filters: {
                 search: '',
                 project_id: '',
-                category_id: '',
+                template_id: '',
                 status: '',
-                priority: '',
-                assigned_to_id: '',
-                sort_by: 'due_date',
-                sort_order: 'asc',
+                assigned_to: '',
+                sort_by: 'created_at',
+                sort_order: 'desc',
                 per_page: 25
             },
             pagination: {},
@@ -1496,6 +1638,7 @@
 
             // Modal states
             showModal: false,
+            showTemplateModal: false,
             showDetailsModal: false,
             showBulkAssignModal: false,
             isEditing: false,
@@ -1504,13 +1647,18 @@
             // Form data
             requestForm: {
                 project_id: '',
-                category_id: '',
+                template_id: '',
                 title: '',
-                description: '',
-                assigned_to_id: '',
+                assigned_to: '',
                 due_date: '',
-                priority: 'medium',
                 notes: ''
+            },
+            templateForm: {
+                project_id: '',
+                template_id: '',
+                title: '',
+                assigned_to: '',
+                due_date: ''
             },
 
             selectedRequest: null,
@@ -1541,551 +1689,830 @@
 
                 if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
                     options.body = JSON.stringify(data);
+            }
+
+            return options;
+        },
+
+        // Load supporting data
+        async loadSupportingData() {
+            try {
+                console.log('📊 Loading supporting data...');
+
+                const responses = await Promise.all([
+                    fetch('/api/v1/projects', this.getFetchOptions()),
+                    fetch('/api/v1/pbc-requests/available-templates', this.getFetchOptions()),
+                    fetch('/api/v1/users', this.getFetchOptions())
+                ]);
+
+                const [projectsRes, templatesRes, usersRes] = responses;
+
+                if (projectsRes.ok) {
+                    const projectsData = await projectsRes.json();
+                    this.availableProjects = projectsData.data || [];
+                    console.log('✅ Projects loaded:', this.availableProjects.length);
                 }
 
-                return options;
-            },
-
-            // Load supporting data
-            async loadSupportingData() {
-                try {
-                    console.log('📋 Loading supporting data...');
-
-                    // Load projects
-                    const projectsResponse = await fetch('/api/v1/projects?per_page=100', this.getFetchOptions());
-                    if (projectsResponse.ok) {
-                        const projectsResult = await projectsResponse.json();
-                        this.availableProjects = projectsResult.data || [];
-                        console.log('✅ Projects loaded:', this.availableProjects.length);
-                    }
-
-                    // Load categories
-                    const categoriesResponse = await fetch('/api/v1/pbc-categories?per_page=100', this.getFetchOptions());
-                    if (categoriesResponse.ok) {
-                        const categoriesResult = await categoriesResponse.json();
-                        this.availableCategories = categoriesResult.data || [];
-                        console.log('✅ Categories loaded:', this.availableCategories.length);
-                    } else {
-                        // Fallback: create some default categories for testing
-                        this.availableCategories = [
-                            { id: 1, name: 'Cash and Cash Equivalents', code: 'CASH', color_code: '#10B981' },
-                            { id: 2, name: 'Accounts Receivable', code: 'AR', color_code: '#3B82F6' },
-                            { id: 3, name: 'Inventory', code: 'INV', color_code: '#F59E0B' },
-                            { id: 4, name: 'Accounts Payable', code: 'AP', color_code: '#EF4444' },
-                            { id: 5, name: 'Tax', code: 'TAX', color_code: '#EC4899' },
-                            { id: 6, name: 'General Ledger', code: 'GL', color_code: '#6B7280' }
-                        ];
-                        console.log('⚠️ Using fallback categories');
-                    }
-
-                    // Load users
-                    const usersResponse = await fetch('/api/v1/users?per_page=100', this.getFetchOptions());
-                    if (usersResponse.ok) {
-                        const usersResult = await usersResponse.json();
-                        this.availableUsers = usersResult.data || [];
-                        console.log('✅ Users loaded:', this.availableUsers.length);
-                    }
-                } catch (error) {
-                    console.error('❌ Failed to load supporting data:', error);
-                    this.showError('Failed to load supporting data: ' + error.message);
+                if (templatesRes.ok) {
+                    const templatesData = await templatesRes.json();
+                    this.availableTemplates = templatesData.data || [];
+                    console.log('✅ Templates loaded:', this.availableTemplates.length);
                 }
-            },
 
-            // API calls
-            async loadPbcRequests(page = 1) {
-                console.log('🔍 Loading PBC requests - Start');
+                if (usersRes.ok) {
+                    const usersData = await usersRes.json();
+                    this.availableUsers = usersData.data || [];
+                    console.log('✅ Users loaded:', this.availableUsers.length);
+                }
+
+            } catch (error) {
+                console.error('❌ Error loading supporting data:', error);
+                this.showAlert('Failed to load supporting data', 'error');
+            }
+        },
+
+        // Load PBC requests
+        async loadPbcRequests(page = 1) {
+            try {
                 this.loading = true;
+                console.log('📋 Loading PBC requests...', { page, filters: this.filters });
 
-                try {
-                    const params = new URLSearchParams({
-                        ...this.filters,
-                        page: page
-                    });
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    per_page: this.filters.per_page.toString(),
+                    ...Object.fromEntries(
+                        Object.entries(this.filters).filter(([key, value]) => value && key !== 'per_page')
+                    )
+                });
 
-                    const response = await fetch(`/api/v1/pbc-requests?${params}`, this.getFetchOptions());
+                const response = await fetch(`/api/v1/pbc-requests?${params}`, this.getFetchOptions());
 
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('❌ HTTP Error:', response.status, errorText);
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    const result = await response.json();
-                    console.log('📊 Response:', result);
-
-                    if (result.success) {
-                        this.pbcRequests = result.data || [];
-                        this.pagination = result.pagination || {};
-                        console.log('✅ PBC requests loaded:', this.pbcRequests.length);
-                    } else {
-                        console.error('❌ Error:', result.message);
-                        this.showError('Failed to load PBC requests: ' + result.message);
-                    }
-                } catch (error) {
-                    console.error('🚨 Network Error:', error);
-                    this.showError('Failed to load PBC requests: ' + error.message);
-                } finally {
-                    this.loading = false;
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-            },
 
-            async loadStats() {
-                try {
-                    // Calculate stats from current data
+                const data = await response.json();
+                console.log('✅ PBC requests loaded:', data);
+
+                this.pbcRequests = data.data || [];
+                this.pagination = data.pagination || {};
+
+                // Update stats based on loaded data
+                this.updateStats();
+
+            } catch (error) {
+                console.error('❌ Error loading PBC requests:', error);
+                this.showAlert('Failed to load PBC requests', 'error');
+                this.pbcRequests = [];
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // Load stats
+        async loadStats() {
+            try {
+                const response = await fetch('/api/v1/dashboard/stats', this.getFetchOptions());
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📊 Stats loaded:', data);
+
+                    // Extract PBC-specific stats
                     this.stats = {
-                        total: this.pbcRequests.length,
-                        completed: this.pbcRequests.filter(r => r.status === 'completed').length,
-                        pending: this.pbcRequests.filter(r => r.status === 'pending' || r.status === 'in_progress').length,
-                        overdue: this.pbcRequests.filter(r => r.status === 'overdue' || this.isOverdue(r)).length
+                        total: data.data?.pbc_requests?.total || 0,
+                        completed: data.data?.pbc_requests?.completed || 0,
+                        pending: data.data?.pbc_requests?.active || 0,
+                        overdue: data.data?.pbc_requests?.overdue || 0
                     };
-                } catch (error) {
-                    console.error('Failed to load stats:', error);
                 }
-            },
+            } catch (error) {
+                console.error('❌ Error loading stats:', error);
+                // Fallback to local calculation
+                this.updateStats();
+            }
+        },
 
-            async saveRequest() {
+        // Update stats from current data
+        updateStats() {
+            if (!this.pbcRequests.length) return;
+
+            this.stats = {
+                total: this.pbcRequests.length,
+                completed: this.pbcRequests.filter(r => r.status === 'completed').length,
+                pending: this.pbcRequests.filter(r => r.status === 'active').length,
+                overdue: this.pbcRequests.filter(r => this.isOverdue(r)).length
+            };
+        },
+
+        // Load compatible templates for selected project
+        async loadCompatibleTemplates() {
+            if (!this.templateForm.project_id) {
+                this.compatibleTemplates = [];
+                return;
+            }
+
+            try {
+                const project = this.availableProjects.find(p => p.id == this.templateForm.project_id);
+                if (!project) return;
+
+                const params = new URLSearchParams({
+                    engagement_type: project.engagement_type,
+                    project_id: project.id
+                });
+
+                const response = await fetch(`/api/v1/pbc-requests/available-templates?${params}`, this.getFetchOptions());
+
+                if (response.ok) {
+                    const data = await response.json();
+                    this.compatibleTemplates = data.data || [];
+                }
+            } catch (error) {
+                console.error('❌ Error loading compatible templates:', error);
+                this.compatibleTemplates = this.availableTemplates;
+            }
+        },
+
+        // Create from template
+        async createFromTemplate() {
+            try {
                 this.saving = true;
                 this.errors = {};
 
-                try {
-                    const formData = { ...this.requestForm };
+                console.log('📝 Creating from template:', this.templateForm);
 
-                    // Convert empty strings to null for nullable fields
-                    const nullableFields = ['notes'];
-                    nullableFields.forEach(field => {
-                        if (formData[field] === '') {
-                            formData[field] = null;
-                        }
-                    });
+                const response = await fetch('/api/v1/pbc-requests/create-from-template',
+                    this.getFetchOptions('POST', this.templateForm));
 
-                    const url = this.isEditing
-                        ? `/api/v1/pbc-requests/${formData.id}`
-                        : '/api/v1/pbc-requests';
+                const data = await response.json();
 
-                    const method = this.isEditing ? 'PUT' : 'POST';
-
-                    console.log('💾 Sending PBC request data:', formData);
-
-                    const response = await fetch(url, this.getFetchOptions(method, formData));
-
-                    const result = await response.json();
-                    console.log('📤 Server response:', result);
-
-                    if (result.success) {
-                        this.showSuccess(this.isEditing ? 'PBC request updated successfully' : 'PBC request created successfully');
-                        this.closeModal();
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        if (result.errors) {
-                            this.errors = result.errors;
-                            console.log('⚠️ Validation errors:', this.errors);
-                        } else {
-                            this.showError(result.message || 'Failed to save PBC request');
-                        }
+                if (!response.ok) {
+                    if (data.errors) {
+                        this.errors = data.errors;
                     }
-                } catch (error) {
-                    console.error('❌ Network error:', error);
-                    this.showError('Network error: ' + error.message);
-                } finally {
-                    this.saving = false;
-                }
-            },
-
-            async deleteRequest(request) {
-                if (!confirm(`Are you sure you want to delete the request "${request.title}"? This action cannot be undone.`)) {
-                    return;
+                    throw new Error(data.message || 'Failed to create request');
                 }
 
-                try {
-                    const response = await fetch(`/api/v1/pbc-requests/${request.id}`, this.getFetchOptions('DELETE'));
-                    const result = await response.json();
+                console.log('✅ Request created from template:', data);
+                this.showAlert('PBC request created successfully!', 'success');
+                this.closeTemplateModal();
+                await this.loadPbcRequests();
+                await this.loadStats();
 
-                    if (result.success) {
-                        this.showSuccess('PBC request deleted successfully');
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        this.showError(result.message || 'Failed to delete PBC request');
+            } catch (error) {
+                console.error('❌ Error creating from template:', error);
+                this.showAlert(error.message || 'Failed to create request', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        // Create/Update custom request
+        async saveRequest() {
+            try {
+                this.saving = true;
+                this.errors = {};
+
+                const url = this.isEditing
+                    ? `/api/v1/pbc-requests/${this.selectedRequest.id}`
+                    : '/api/v1/pbc-requests';
+                const method = this.isEditing ? 'PUT' : 'POST';
+
+                console.log(`📝 ${this.isEditing ? 'Updating' : 'Creating'} request:`, this.requestForm);
+
+                const response = await fetch(url, this.getFetchOptions(method, this.requestForm));
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if (data.errors) {
+                        this.errors = data.errors;
                     }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
+                    throw new Error(data.message || 'Failed to save request');
                 }
-            },
 
-            async completeRequest(request) {
-                try {
-                    const response = await fetch(`/api/v1/pbc-requests/${request.id}/complete`, this.getFetchOptions('PUT'));
-                    const result = await response.json();
+                console.log('✅ Request saved:', data);
+                this.showAlert(`PBC request ${this.isEditing ? 'updated' : 'created'} successfully!`, 'success');
+                this.closeModal();
+                await this.loadPbcRequests();
+                await this.loadStats();
 
-                    if (result.success) {
-                        this.showSuccess('PBC request marked as completed');
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        this.showError(result.message || 'Failed to complete PBC request');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
+            } catch (error) {
+                console.error('❌ Error saving request:', error);
+                this.showAlert(error.message || 'Failed to save request', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        // Complete request
+        async completeRequest(request) {
+            if (!confirm(`Mark "${request.title}" as completed?`)) return;
+
+            try {
+                const response = await fetch(`/api/v1/pbc-requests/${request.id}/complete`,
+                    this.getFetchOptions('POST'));
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to complete request');
                 }
-            },
 
-            async reopenRequest(request) {
-                try {
-                    const response = await fetch(`/api/v1/pbc-requests/${request.id}/reopen`, this.getFetchOptions('PUT'));
-                    const result = await response.json();
+                console.log('✅ Request completed:', request.title);
+                this.showAlert('Request marked as completed!', 'success');
+                await this.loadPbcRequests();
+                await this.loadStats();
 
-                    if (result.success) {
-                        this.showSuccess('PBC request reopened');
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        this.showError(result.message || 'Failed to reopen PBC request');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
+            } catch (error) {
+                console.error('❌ Error completing request:', error);
+                this.showAlert(error.message || 'Failed to complete request', 'error');
+            }
+        },
+
+        // Reopen request
+        async reopenRequest(request) {
+            if (!confirm(`Reopen "${request.title}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/v1/pbc-requests/${request.id}/reopen`,
+                    this.getFetchOptions('POST'));
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to reopen request');
                 }
-            },
 
-            // Modal methods
-            openCreateModal() {
-                this.isEditing = false;
-                this.requestForm = {
-                    project_id: '',
-                    category_id: '',
-                    title: '',
-                    description: '',
-                    assigned_to_id: '',
-                    due_date: '',
-                    priority: 'medium',
-                    notes: ''
+                console.log('✅ Request reopened:', request.title);
+                this.showAlert('Request reopened successfully!', 'success');
+                await this.loadPbcRequests();
+                await this.loadStats();
+
+            } catch (error) {
+                console.error('❌ Error reopening request:', error);
+                this.showAlert(error.message || 'Failed to reopen request', 'error');
+            }
+        },
+
+        // Delete request
+        async deleteRequest(request) {
+            if (!confirm(`Delete "${request.title}"? This action cannot be undone.`)) return;
+
+            try {
+                const response = await fetch(`/api/v1/pbc-requests/${request.id}`,
+                    this.getFetchOptions('DELETE'));
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to delete request');
+                }
+
+                console.log('✅ Request deleted:', request.title);
+                this.showAlert('Request deleted successfully!', 'success');
+                await this.loadPbcRequests();
+                await this.loadStats();
+
+            } catch (error) {
+                console.error('❌ Error deleting request:', error);
+                this.showAlert(error.message || 'Failed to delete request', 'error');
+            }
+        },
+
+        // Duplicate request
+        async duplicateRequest(request) {
+            try {
+                const response = await fetch(`/api/v1/pbc-requests/${request.id}/duplicate`,
+                    this.getFetchOptions('POST'));
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to duplicate request');
+                }
+
+                console.log('✅ Request duplicated:', request.title);
+                this.showAlert('Request duplicated successfully!', 'success');
+                await this.loadPbcRequests();
+                await this.loadStats();
+
+            } catch (error) {
+                console.error('❌ Error duplicating request:', error);
+                this.showAlert(error.message || 'Failed to duplicate request', 'error');
+            }
+        },
+
+        // Send reminder
+        async sendReminder(request) {
+            if (!request.assignedTo) {
+                this.showAlert('Cannot send reminder - no one assigned to this request', 'warning');
+                return;
+            }
+
+            try {
+                const reminderData = {
+                    remindable_type: 'App\\Models\\PbcRequest',
+                    remindable_id: request.id,
+                    subject: `Reminder: ${request.title}`,
+                    message: `This is a reminder about your pending PBC request: ${request.title}`,
+                    type: 'follow_up',
+                    method: 'email',
+                    sent_to: request.assignedTo.id,
+                    scheduled_at: new Date().toISOString()
                 };
-                this.errors = {};
-                this.showModal = true;
-            },
 
-            editRequest(request) {
-                this.isEditing = true;
+                const response = await fetch('/api/v1/pbc-reminders',
+                    this.getFetchOptions('POST', reminderData));
 
-                // Format the due date properly for the date input
-                let formattedDate = '';
-                if (request.due_date) {
-                    const date = new Date(request.due_date);
-                    if (!isNaN(date.getTime())) {
-                        formattedDate = date.toISOString().split('T')[0];
-                    }
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to send reminder');
                 }
 
-                this.requestForm = {
-                    id: request.id,
-                    project_id: request.project_id || '',
-                    category_id: request.category_id || '',
-                    title: request.title || '',
-                    description: request.description || '',
-                    assigned_to_id: request.assigned_to_id || '',
-                    due_date: formattedDate,
-                    priority: request.priority || 'medium',
-                    notes: request.notes || ''
-                };
-                this.errors = {};
-                this.showModal = true;
-            },
+                console.log('✅ Reminder sent for:', request.title);
+                this.showAlert('Reminder sent successfully!', 'success');
 
-            viewRequest(request) {
-                this.selectedRequest = request;
-                this.showDetailsModal = true;
-            },
+            } catch (error) {
+                console.error('❌ Error sending reminder:', error);
+                this.showAlert(error.message || 'Failed to send reminder', 'error');
+            }
+        },
 
-            editRequestFromDetails() {
-                this.showDetailsModal = false;
-                this.editRequest(this.selectedRequest);
-            },
+        // Bulk operations
+        async bulkComplete() {
+            if (!this.selectedRequests.length) return;
+            if (!confirm(`Mark ${this.selectedRequests.length} requests as completed?`)) return;
 
-            closeModal() {
-                this.showModal = false;
-                this.isEditing = false;
-                this.requestForm = {};
-                this.errors = {};
-            },
-
-            closeDetailsModal() {
-                this.showDetailsModal = false;
-                this.selectedRequest = null;
-            },
-
-            closeBulkAssignModal() {
-                this.showBulkAssignModal = false;
-                this.bulkAssignUserId = '';
-            },
-
-            // Selection methods
-            toggleSelectAll(event) {
-                if (event.target.checked) {
-                    this.selectedRequests = this.pbcRequests.map(request => request.id);
-                } else {
-                    this.selectedRequests = [];
-                }
-            },
-
-            toggleRequestSelection(requestId) {
-                const index = this.selectedRequests.indexOf(requestId);
-                if (index > -1) {
-                    this.selectedRequests.splice(index, 1);
-                } else {
-                    this.selectedRequests.push(requestId);
-                }
-            },
-
-            clearSelection() {
-                this.selectedRequests = [];
-            },
-
-            // Bulk actions
-            async bulkComplete() {
-                if (!confirm(`Mark ${this.selectedRequests.length} selected requests as completed?`)) return;
-
-                try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
-                        pbc_request_ids: this.selectedRequests,
+            try {
+                const response = await fetch('/api/v1/pbc-requests/bulk-update',
+                    this.getFetchOptions('POST', {
+                        request_ids: this.selectedRequests,
                         action: 'complete'
                     }));
 
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showSuccess(`${result.data.updated} requests marked as completed`);
-                        this.clearSelection();
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        this.showError(result.message || 'Failed to complete requests');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to complete requests');
                 }
-            },
 
-            async bulkReopen() {
-                if (!confirm(`Reopen ${this.selectedRequests.length} selected requests?`)) return;
+                const result = await response.json();
+                console.log('✅ Bulk complete result:', result);
+                this.showAlert(`${result.data.success} requests completed successfully!`, 'success');
+                this.clearSelection();
+                await this.loadPbcRequests();
+                await this.loadStats();
 
-                try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
-                        pbc_request_ids: this.selectedRequests,
+            } catch (error) {
+                console.error('❌ Error bulk completing:', error);
+                this.showAlert(error.message || 'Failed to complete requests', 'error');
+            }
+        },
+
+        async bulkReopen() {
+            if (!this.selectedRequests.length) return;
+            if (!confirm(`Reopen ${this.selectedRequests.length} requests?`)) return;
+
+            try {
+                const response = await fetch('/api/v1/pbc-requests/bulk-update',
+                    this.getFetchOptions('POST', {
+                        request_ids: this.selectedRequests,
                         action: 'reopen'
                     }));
 
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showSuccess(`${result.data.updated} requests reopened`);
-                        this.clearSelection();
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        this.showError(result.message || 'Failed to reopen requests');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to reopen requests');
                 }
-            },
 
-            bulkAssign() {
-                this.showBulkAssignModal = true;
-            },
+                const result = await response.json();
+                console.log('✅ Bulk reopen result:', result);
+                this.showAlert(`${result.data.success} requests reopened successfully!`, 'success');
+                this.clearSelection();
+                await this.loadPbcRequests();
+                await this.loadStats();
 
-            async performBulkAssign() {
-                try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
-                        pbc_request_ids: this.selectedRequests,
-                        action: 'assign',
-                        assigned_to_id: this.bulkAssignUserId
-                    }));
+            } catch (error) {
+                console.error('❌ Error bulk reopening:', error);
+                this.showAlert(error.message || 'Failed to reopen requests', 'error');
+            }
+        },
 
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showSuccess(`${result.data.updated} requests reassigned`);
-                        this.closeBulkAssignModal();
-                        this.clearSelection();
-                        await this.loadPbcRequests();
-                    } else {
-                        this.showError(result.message || 'Failed to assign requests');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
-                }
-            },
+        async bulkDelete() {
+            if (!this.selectedRequests.length) return;
+            if (!confirm(`Delete ${this.selectedRequests.length} requests? This action cannot be undone.`)) return;
 
-            async bulkDelete() {
-                if (!confirm(`Delete ${this.selectedRequests.length} selected requests? This action cannot be undone.`)) return;
-
-                try {
-                    const response = await fetch('/api/v1/pbc-requests/bulk-update', this.getFetchOptions('PUT', {
-                        pbc_request_ids: this.selectedRequests,
+            try {
+                const response = await fetch('/api/v1/pbc-requests/bulk-update',
+                    this.getFetchOptions('POST', {
+                        request_ids: this.selectedRequests,
                         action: 'delete'
                     }));
 
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showSuccess(`${result.data.updated} requests deleted`);
-                        this.clearSelection();
-                        await this.loadPbcRequests();
-                        await this.loadStats();
-                    } else {
-                        this.showError(result.message || 'Failed to delete requests');
-                    }
-                } catch (error) {
-                    this.showError('Network error: ' + error.message);
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to delete requests');
                 }
-            },
 
-            async bulkSendReminders() {
-                if (!confirm(`Send reminders for ${this.selectedRequests.length} selected requests?`)) return;
-                this.showSuccess(`Reminders sent for ${this.selectedRequests.length} requests`);
+                const result = await response.json();
+                console.log('✅ Bulk delete result:', result);
+                this.showAlert(`${result.data.success} requests deleted successfully!`, 'success');
                 this.clearSelection();
-            },
+                await this.loadPbcRequests();
+                await this.loadStats();
 
-            async sendReminder(request) {
-                this.showSuccess(`Reminder sent for "${request.title}"`);
-            },
+            } catch (error) {
+                console.error('❌ Error bulk deleting:', error);
+                this.showAlert(error.message || 'Failed to delete requests', 'error');
+            }
+        },
 
-            // Filter methods
-            clearFilters() {
-                this.filters = {
-                    search: '',
-                    project_id: '',
-                    category_id: '',
-                    status: '',
-                    priority: '',
-                    assigned_to_id: '',
-                    sort_by: 'due_date',
-                    sort_order: 'asc',
-                    per_page: 25
-                };
-                this.loadPbcRequests();
-            },
+        bulkAssign() {
+            if (!this.selectedRequests.length) return;
+            this.showBulkAssignModal = true;
+            this.bulkAssignUserId = '';
+        },
 
-            async exportRequests() {
-                try {
-                    const params = new URLSearchParams(this.filters);
-                    const response = await fetch(`/api/v1/pbc-requests/export?${params}`, this.getFetchOptions());
+        async performBulkAssign() {
+            if (!this.bulkAssignUserId) return;
 
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'pbc_requests_export.xlsx';
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                    }
-                } catch (error) {
-                    this.showError('Failed to export PBC requests');
-                }
-            },
+            try {
+                const response = await fetch('/api/v1/pbc-requests/bulk-update',
+                    this.getFetchOptions('POST', {
+                        request_ids: this.selectedRequests,
+                        action: 'assign',
+                        data: { assigned_to: this.bulkAssignUserId }
+                    }));
 
-            // Pagination
-            changePage(page) {
-                if (page >= 1 && page <= this.pagination.last_page) {
-                    this.loadPbcRequests(page);
-                }
-            },
-
-            get visiblePages() {
-                const current = this.pagination.current_page || 1;
-                const last = this.pagination.last_page || 1;
-                const pages = [];
-
-                for (let i = Math.max(1, current - 2); i <= Math.min(last, current + 2); i++) {
-                    pages.push(i);
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to assign requests');
                 }
 
-                return pages;
-            },
+                const result = await response.json();
+                console.log('✅ Bulk assign result:', result);
+                this.showAlert(`${result.data.success} requests assigned successfully!`, 'success');
+                this.closeBulkAssignModal();
+                this.clearSelection();
+                await this.loadPbcRequests();
 
-            // Utility methods
-            isOverdue(request) {
-                if (request.status === 'completed') return false;
-                const today = new Date();
-                const dueDate = new Date(request.due_date);
-                return dueDate < today;
-            },
+            } catch (error) {
+                console.error('❌ Error bulk assigning:', error);
+                this.showAlert(error.message || 'Failed to assign requests', 'error');
+            }
+        },
 
-            getDaysUntilDue(request) {
-                if (request.status === 'completed') return null;
-                const today = new Date();
-                const dueDate = new Date(request.due_date);
-                const diffTime = dueDate - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays;
-            },
+        async bulkSendReminders() {
+            if (!this.selectedRequests.length) return;
+            if (!confirm(`Send reminders for ${this.selectedRequests.length} requests?`)) return;
 
-            getDueText(request) {
-                const days = this.getDaysUntilDue(request);
-                if (days === null) return '';
-                if (days < 0) return `${Math.abs(days)} days overdue`;
-                if (days === 0) return 'Due today';
-                if (days === 1) return 'Due tomorrow';
-                if (days <= 3) return `Due in ${days} days`;
-                return `${days} days left`;
-            },
+            try {
+                const response = await fetch('/api/v1/pbc-reminders/bulk-send',
+                    this.getFetchOptions('POST', {
+                        pbc_request_ids: this.selectedRequests,
+                        type: 'follow_up',
+                        custom_message: 'This is a reminder about your pending PBC request. Please review and submit the required documents.'
+                    }));
 
-            getDueBadgeClass(request) {
-                const days = this.getDaysUntilDue(request);
-                if (days === null) return '';
-                if (days < 0) return 'due-overdue';
-                if (days <= 3) return 'due-soon';
-                return 'due-ok';
-            },
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Failed to send reminders');
+                }
 
-            formatEngagementType(type) {
-                if (!type) return 'Unknown';
-                return type.split('_').map(word =>
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ');
-            },
+                const result = await response.json();
+                console.log('✅ Bulk reminders result:', result);
+                this.showAlert(`${result.data.success} reminders sent successfully!`, 'success');
+                this.clearSelection();
 
-            formatStatus(status) {
-                if (!status) return 'Unknown';
-                return status.split('_').map(word =>
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ');
-            },
+            } catch (error) {
+                console.error('❌ Error sending bulk reminders:', error);
+                this.showAlert(error.message || 'Failed to send reminders', 'error');
+            }
+        },
 
-            formatPriority(priority) {
-                if (!priority) return 'Unknown';
-                return priority.charAt(0).toUpperCase() + priority.slice(1);
-            },
+        // Export requests
+        async exportRequests() {
+            try {
+                const params = new URLSearchParams(
+                    Object.fromEntries(
+                        Object.entries(this.filters).filter(([key, value]) => value)
+                    )
+                );
 
-            formatRole(role) {
-                if (!role) return 'Unknown';
-                return role.split('_').map(word =>
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ');
-            },
+                const response = await fetch(`/api/v1/pbc-requests/export?${params}`, this.getFetchOptions());
 
-            formatDate(dateString) {
-                if (!dateString) return '';
+                if (!response.ok) {
+                    throw new Error('Failed to export requests');
+                }
+
+                // Handle file download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pbc-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                this.showAlert('Export completed successfully!', 'success');
+
+            } catch (error) {
+                console.error('❌ Error exporting:', error);
+                this.showAlert('Failed to export requests', 'error');
+            }
+        },
+
+        // Modal management
+        openCreateModal() {
+            this.isEditing = false;
+            this.requestForm = {
+                project_id: '',
+                template_id: '',
+                title: '',
+                assigned_to: '',
+                due_date: '',
+                notes: ''
+            };
+            this.errors = {};
+            this.showModal = true;
+        },
+
+        openCreateFromTemplateModal() {
+            this.templateForm = {
+                project_id: '',
+                template_id: '',
+                title: '',
+                assigned_to: '',
+                due_date: ''
+            };
+            this.compatibleTemplates = [];
+            this.errors = {};
+            this.showTemplateModal = true;
+        },
+
+        editRequest(request) {
+            this.isEditing = true;
+            this.selectedRequest = request;
+            this.requestForm = {
+                project_id: request.project_id || '',
+                template_id: request.template_id || '',
+                title: request.title || '',
+                assigned_to: request.assigned_to || '',
+                due_date: request.due_date || '',
+                notes: request.notes || ''
+            };
+            this.errors = {};
+            this.showModal = true;
+        },
+
+        editRequestFromDetails() {
+            this.closeDetailsModal();
+            this.editRequest(this.selectedRequest);
+        },
+
+        viewRequest(request) {
+            this.selectedRequest = request;
+            this.showDetailsModal = true;
+        },
+
+        viewRequestItems() {
+            if (this.selectedRequest) {
+                window.location.href = `/pbc-requests/${this.selectedRequest.id}/items`;
+            }
+        },
+
+        closeModal() {
+            this.showModal = false;
+            this.isEditing = false;
+            this.errors = {};
+            this.saving = false;
+        },
+
+        closeTemplateModal() {
+            this.showTemplateModal = false;
+            this.errors = {};
+            this.saving = false;
+        },
+
+        closeDetailsModal() {
+            this.showDetailsModal = false;
+            this.selectedRequest = null;
+        },
+
+        closeBulkAssignModal() {
+            this.showBulkAssignModal = false;
+            this.bulkAssignUserId = '';
+        },
+
+        // Selection management
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedRequests = this.pbcRequests.map(r => r.id);
+            } else {
+                this.selectedRequests = [];
+            }
+        },
+
+        toggleRequestSelection(requestId) {
+            const index = this.selectedRequests.indexOf(requestId);
+            if (index > -1) {
+                this.selectedRequests.splice(index, 1);
+            } else {
+                this.selectedRequests.push(requestId);
+            }
+        },
+
+        clearSelection() {
+            this.selectedRequests = [];
+        },
+
+        // Pagination
+        changePage(page) {
+            if (page >= 1 && page <= this.pagination.last_page) {
+                this.loadPbcRequests(page);
+            }
+        },
+
+        get visiblePages() {
+            const current = this.pagination.current_page || 1;
+            const last = this.pagination.last_page || 1;
+            const pages = [];
+
+            const start = Math.max(1, current - 2);
+            const end = Math.min(last, current + 2);
+
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+
+            return pages;
+        },
+
+        // Filters
+        clearFilters() {
+            this.filters = {
+                search: '',
+                project_id: '',
+                template_id: '',
+                status: '',
+                assigned_to: '',
+                sort_by: 'created_at',
+                sort_order: 'desc',
+                per_page: 25
+            };
+            this.loadPbcRequests();
+        },
+
+        // Utility functions
+        formatDate(dateString) {
+            if (!dateString) return '';
+            try {
                 return new Date(dateString).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric'
                 });
-            },
-
-            truncateText(text, length) {
-                if (!text) return '';
-                if (text.length <= length) return text;
-                return text.substring(0, length) + '...';
-            },
-
-            // Notification methods
-            showSuccess(message) {
-                alert('SUCCESS: ' + message);
-            },
-
-            showError(message) {
-                alert('ERROR: ' + message);
+            } catch {
+                return dateString;
             }
+        },
+
+        formatEngagementType(type) {
+            if (!type) return '';
+            return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        },
+
+        formatRole(role) {
+            if (!role) return '';
+            return role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        },
+
+        formatStatus(status) {
+            if (!status) return '';
+            return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        },
+
+        truncateText(text, maxLength) {
+            if (!text) return '';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        },
+
+        isOverdue(request) {
+            if (!request.due_date || request.status === 'completed') return false;
+            return new Date(request.due_date) < new Date();
+        },
+
+        getDueBadgeClass(request) {
+            if (!request.due_date || request.status === 'completed') return '';
+
+            const dueDate = new Date(request.due_date);
+            const now = new Date();
+            const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return 'due-overdue';
+            if (diffDays <= 3) return 'due-soon';
+            return 'due-ok';
+        },
+
+        getDueText(request) {
+            if (!request.due_date || request.status === 'completed') return '';
+
+            const dueDate = new Date(request.due_date);
+            const now = new Date();
+            const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`;
+            if (diffDays === 0) return 'Due today';
+            if (diffDays === 1) return 'Due tomorrow';
+            if (diffDays <= 7) return `${diffDays} days left`;
+            return '';
+        },
+
+        // Alert system
+        showAlert(message, type = 'info') {
+            // Create alert element
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <div class="alert-content">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            // Add to page
+            document.body.appendChild(alert);
+
+            // Add show class for animation
+            setTimeout(() => alert.classList.add('show'), 100);
+
+            // Remove after delay
+            setTimeout(() => {
+                alert.classList.remove('show');
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.parentNode.removeChild(alert);
+                    }
+                }, 300);
+            }, 4000);
         }
     }
+}
 </script>
+
+<!-- Alert Styles -->
+<style>
+    .alert {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 400px;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        z-index: 10000;
+        transform: translateX(100%);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        opacity: 0;
+    }
+
+    .alert.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .alert-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .alert-content i {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        color: #065F46;
+        border-left: 4px solid #10B981;
+    }
+
+    .alert-error {
+        background: #FEE2E2;
+        color: #991B1B;
+        border-left: 4px solid #EF4444;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        color: #92400E;
+        border-left: 4px solid #F59E0B;
+    }
+
+    .alert-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+        border-left: 4px solid #3B82F6;
+    }
+</style>
 @endpush
+
 @endsection

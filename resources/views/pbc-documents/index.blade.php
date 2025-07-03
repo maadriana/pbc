@@ -1873,7 +1873,7 @@ function uploadCenter() {
         // API calls
         async loadDocuments() {
             try {
-                const response = await fetch('/api/v1/pbc-documents?' + new URLSearchParams(this.filters));
+                const response = await fetch('/api/pbc-documents?' + new URLSearchParams(this.filters));
                 const data = await response.json();
 
                 if (data.success) {
@@ -1897,7 +1897,7 @@ function uploadCenter() {
 
         async loadStats() {
             try {
-                const response = await fetch('/api/v1/pbc-documents/stats');
+                const response = await fetch('/api/pbc-documents/stats');
                 const data = await response.json();
 
                 if (data.success) {
@@ -1912,7 +1912,7 @@ function uploadCenter() {
 
         async loadPbcRequests() {
             try {
-                const response = await fetch('/api/v1/pbc-requests?per_page=1000');
+                const response = await fetch('/api/pbc-requests?per_page=1000');
                 const data = await response.json();
 
                 if (data.success) {
@@ -1925,7 +1925,7 @@ function uploadCenter() {
 
         async loadUsers() {
             try {
-                const response = await fetch('/api/v1/users?per_page=1000');
+                const response = await fetch('/api/users?per_page=1000');
                 const data = await response.json();
 
                 if (data.success) {
@@ -2072,7 +2072,7 @@ function uploadCenter() {
             }
 
             try {
-                const response = await fetch('/api/v1/pbc-documents/bulk-approve', {
+                const response = await fetch('/api/pbc-documents/bulk-approve', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2105,7 +2105,7 @@ function uploadCenter() {
             if (!reason) return;
 
             try {
-                const response = await fetch('/api/v1/pbc-documents/bulk-reject', {
+                const response = await fetch('/api/pbc-documents/bulk-reject', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2135,7 +2135,7 @@ function uploadCenter() {
 
         async bulkDownload() {
             try {
-                const response = await fetch('/api/v1/pbc-documents/bulk-download', {
+                const response = await fetch('/api/pbc-documents/bulk-download', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2173,7 +2173,7 @@ function uploadCenter() {
             }
 
             try {
-                const response = await fetch('/api/v1/pbc-documents/bulk-delete', {
+                const response = await fetch('/api/pbc-documents/bulk-delete', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2296,7 +2296,7 @@ function uploadCenter() {
                     formData.append(`files[${index}]`, file);
                 });
 
-                const response = await fetch('/api/v1/pbc-documents', {
+                const response = await fetch('/api/pbc-documents', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content

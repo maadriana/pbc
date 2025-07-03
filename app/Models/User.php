@@ -18,10 +18,15 @@ class User extends Authenticatable
         'email',
         'password',
         'entity',
+        'position_title',        // NEW
+        'department',            // NEW
         'role',
         'access_level',
         'contact_number',
+        'notification_preferences', // NEW
+        'pbc_settings',            // NEW
         'is_active',
+        'last_login_at',          // NEW
     ];
 
     protected $hidden = [
@@ -33,6 +38,9 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
         'access_level' => 'integer',
+        'notification_preferences' => 'array',  // NEW
+        'pbc_settings' => 'array',              // NEW
+        'last_login_at' => 'datetime',          // NEW
     ];
 
     // Relationships
@@ -41,34 +49,50 @@ class User extends Authenticatable
         return $this->hasMany(UserPermission::class);
     }
 
-    public function requestedPbcs()
+    // UPDATED PBC Relationships - Fixed method names to match new table structure
+    public function createdPbcRequests()
     {
-        return $this->hasMany(PbcRequest::class, 'requestor_id');
+        return $this->hasMany(PbcRequest::class, 'created_by');
     }
 
-    public function assignedPbcs()
+    public function assignedPbcRequests()
     {
-        return $this->hasMany(PbcRequest::class, 'assigned_to_id');
+        return $this->hasMany(PbcRequest::class, 'assigned_to');
     }
 
-    public function approvedPbcs()
+    public function createdPbcTemplates()
     {
-        return $this->hasMany(PbcRequest::class, 'approved_by');
+        return $this->hasMany(PbcTemplate::class, 'created_by');
     }
 
-    public function uploadedDocuments()
+    public function requestedPbcItems()
     {
-        return $this->hasMany(PbcDocument::class, 'uploaded_by');
+        return $this->hasMany(PbcRequestItem::class, 'requested_by');
     }
 
-    public function reviewedDocuments()
+    public function assignedPbcItems()
     {
-        return $this->hasMany(PbcDocument::class, 'reviewed_by');
+        return $this->hasMany(PbcRequestItem::class, 'assigned_to');
     }
 
-    public function comments()
+    public function reviewedPbcItems()
     {
-        return $this->hasMany(PbcComment::class);
+        return $this->hasMany(PbcRequestItem::class, 'reviewed_by');
+    }
+
+    public function uploadedSubmissions()
+    {
+        return $this->hasMany(PbcSubmission::class, 'uploaded_by');
+    }
+
+    public function reviewedSubmissions()
+    {
+        return $this->hasMany(PbcSubmission::class, 'reviewed_by');
+    }
+
+    public function pbcComments()
+    {
+        return $this->hasMany(PbcComment::class, 'user_id');
     }
 
     public function sentReminders()
@@ -83,9 +107,10 @@ class User extends Authenticatable
 
     public function auditLogs()
     {
-        return $this->hasMany(AuditLog::class);
+        return $this->hasMany(AuditLog::class, 'user_id');
     }
 
+    // Project relationships
     public function projectsAsEngagementPartner()
     {
         return $this->hasMany(Project::class, 'engagement_partner_id');
@@ -133,54 +158,53 @@ class User extends Authenticatable
     }
 
     // Helper methods - UPDATED
+    public function hasPermission($permission, $resource = null)
+    {
+        // If system admin, grant all permissions
+        if ($this->isSystemAdmin()) {
+            return true;
+        }
 
-public function hasPermission($permission, $resource = null)
-{
-    // If system admin, grant all permissions
-    if ($this->isSystemAdmin()) {
-        return true;
+        // Check database permissions first (if you have a permissions table)
+        $hasDbPermission = $this->permissions()
+            ->where('permission', $permission)
+            ->when($resource, function ($query) use ($resource) {
+                return $query->where('resource', $resource);
+            })
+            ->exists();
+
+        if ($hasDbPermission) {
+            return true;
+        }
+
+        // Fallback to role-based permissions for PBC system
+        $rolePermissions = [
+            'engagement_partner' => [
+                'view_client', 'create_client', 'edit_client', 'delete_client',
+                'view_project', 'create_project', 'edit_project', 'delete_project',
+                'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+                'upload_document', 'approve_document', 'send_reminder', 'view_audit_log',
+                'manage_categories', 'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
+            ],
+            'manager' => [
+                'view_client', 'create_client', 'edit_client',
+                'view_project', 'create_project', 'edit_project', 'delete_project',
+                'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+                'upload_document', 'approve_document', 'send_reminder',
+                'manage_categories', 'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
+            ],
+            'associate' => [
+                'view_project', 'create_project', 'edit_project',
+                'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+                'upload_document', 'approve_document', 'send_reminder', 'send_messages', 'view_messages', 'receive_notifications'
+            ],
+            'guest' => [
+                'view_pbc_request', 'edit_pbc_request', 'upload_document', 'view_messages', 'receive_notifications'
+            ],
+        ];
+
+        return in_array($permission, $rolePermissions[$this->role] ?? []);
     }
-
-    // Check database permissions first (if you have a permissions table)
-    $hasDbPermission = $this->permissions()
-        ->where('permission', $permission)
-        ->when($resource, function ($query) use ($resource) {
-            return $query->where('resource', $resource);
-        })
-        ->exists();
-
-    if ($hasDbPermission) {
-        return true;
-    }
-
-    // Fallback to role-based permissions for PBC system
-    $rolePermissions = [
-        'engagement_partner' => [
-            'view_client', 'create_client', 'edit_client', 'delete_client',
-            'view_project', 'create_project', 'edit_project', 'delete_project',
-            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
-            'upload_document', 'approve_document', 'send_reminder', 'view_audit_log',
-            'manage_categories', 'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
-        ],
-        'manager' => [
-            'view_client', 'create_client', 'edit_client',
-            'view_project', 'create_project', 'edit_project', 'delete_project',
-            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
-            'upload_document', 'approve_document', 'send_reminder',
-            'manage_categories', 'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
-        ],
-        'associate' => [
-            'view_project', 'create_project', 'edit_project',
-            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
-            'upload_document', 'approve_document', 'send_reminder', 'send_messages', 'view_messages', 'receive_notifications'
-        ],
-        'guest' => [
-            'view_pbc_request', 'edit_pbc_request', 'upload_document', 'view_messages', 'receive_notifications'
-        ],
-    ];
-
-    return in_array($permission, $rolePermissions[$this->role] ?? []);
-}
 
     public function isSystemAdmin()
     {
@@ -249,5 +273,33 @@ public function hasPermission($permission, $resource = null)
         }
 
         return $this->permissions ? $this->permissions->pluck('permission') : collect();
+    }
+
+    // NEW: PBC-specific helper methods
+    public function getActivePbcRequestsCount()
+    {
+        return $this->assignedPbcRequests()->where('status', 'active')->count();
+    }
+
+    public function getPendingPbcItemsCount()
+    {
+        return $this->assignedPbcItems()->whereIn('status', ['pending', 'submitted', 'under_review'])->count();
+    }
+
+    public function updateLastLogin()
+    {
+        $this->update(['last_login_at' => now()]);
+    }
+
+    public function getNotificationPreference($type)
+    {
+        $preferences = $this->notification_preferences ?? [];
+        return $preferences[$type] ?? true; // Default to true
+    }
+
+    public function getPbcSetting($key, $default = null)
+    {
+        $settings = $this->pbc_settings ?? [];
+        return $settings[$key] ?? $default;
     }
 }

@@ -4,112 +4,171 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\PbcRequest;
+use App\Models\PbcRequestItem;
+use App\Models\PbcTemplate;
 use App\Models\Project;
-use App\Models\PbcCategory;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Models\Client;
 
 class SamplePbcRequestSeeder extends Seeder
 {
     public function run()
     {
-        $projects = Project::all();
-        $categories = PbcCategory::all()->keyBy('code');
-        $auditors = User::whereIn('role', ['manager', 'associate'])->get();
-        $clients = User::where('role', 'guest')->get();
+        // Get required data
+        $at700Template = PbcTemplate::where('code', 'at_700')->first();
+        $projects = Project::with('client')->get();
+        $systemAdmin = User::where('role', 'system_admin')->first();
+        $clients = Client::all();
 
-        if ($projects->count() < 3 || $clients->count() < 2 || $auditors->count() < 2 || !$categories->has('INV')) {
-            $this->command->warn('⚠️ Skipping SamplePbcRequestSeeder: insufficient data in projects, clients, auditors, or categories.');
+        if (!$at700Template || $projects->isEmpty() || !$systemAdmin) {
+            $this->command->error('Required data not found. Please run other seeders first.');
             return;
         }
 
-        $safe = fn($user) => optional($user)->id;
+        foreach ($projects as $project) {
+            // Get client contact (guest user) if exists
+            $clientContact = User::where('email', $project->contact_email)->first();
 
-        $sampleRequests = [
-    [
-        'project_id' => $projects[0]->id,
-        'category_id' => $categories['CASH']->id ?? null,
-        'title' => 'Bank Statements for 2024',
-        'description' => 'Please provide monthly bank statements for all bank accounts for the year ending December 31, 2024.',
-        'requestor_id' => 6, // Mike Wilson (associate)
-        'assigned_to_id' => 9, // Lisa Chen (client)
-        'date_requested' => Carbon::now()->subDays(10),
-        'due_date' => Carbon::now()->addDays(5),
-        'status' => 'pending',
-        'priority' => 'high',
-        'notes' => 'Include all checking, savings, and time deposit accounts.',
-    ],
-    [
-        'project_id' => $projects[0]->id,
-        'category_id' => $categories['AR']->id ?? null,
-        'title' => 'Accounts Receivable Aging Report',
-        'description' => 'Please provide detailed AR aging report as of December 31, 2024.',
-        'requestor_id' => 7, // Jane Doe (associate)
-        'assigned_to_id' => 9, // Lisa Chen (client)
-        'date_requested' => Carbon::now()->subDays(8),
-        'due_date' => Carbon::now()->addDays(2),
-        'status' => 'completed',
-        'priority' => 'medium',
-        'notes' => 'Received and reviewed.',
-        'completed_at' => Carbon::now()->subDays(1),
-        'approved_by' => 4, // Sarah Johnson (manager)
-        'approved_at' => Carbon::now()->subDays(1),
-    ],
-    [
-        'project_id' => $projects[0]->id,
-        'category_id' => $categories['GL']->id ?? null,
-        'title' => 'Trial Balance with Notes',
-        'description' => 'Please provide detailed trial balance as of December 31, 2024 with explanatory notes.',
-        'requestor_id' => 4, // Sarah Johnson (manager)
-        'assigned_to_id' => 9, // Lisa Chen (client)
-        'date_requested' => Carbon::now()->subDays(25),
-        'due_date' => Carbon::now()->subDays(5),
-        'status' => 'overdue',
-        'priority' => 'urgent',
-        'notes' => 'Awaiting TB file with supporting schedules.',
-    ],
-    [
-        'project_id' => $projects[1]->id,
-        'category_id' => $categories['TAX']->id ?? null,
-        'title' => 'BIR Tax Filings Summary',
-        'description' => 'Please provide summary of all BIR tax filings for 2024 including ITR, VAT returns, and withholding tax returns.',
-        'requestor_id' => 6, // Mike Wilson (associate)
-        'assigned_to_id' => 10, // Carlos Reyes (client)
-        'date_requested' => Carbon::now()->subDays(15),
-        'due_date' => Carbon::now()->addDays(10),
-        'status' => 'pending',
-        'priority' => 'medium',
-        'notes' => 'Please confirm format requirements.',
-    ],
-    [
-        'project_id' => $projects[1]->id,
-        'category_id' => $categories['PAYROLL']->id ?? null,
-        'title' => 'Payroll Register and Tax Filings',
-        'description' => 'Please provide monthly payroll registers and related government filings for 2024.',
-        'requestor_id' => 5, // Robert Kim (manager)
-        'assigned_to_id' => 10, // Carlos Reyes (client)
-        'date_requested' => Carbon::now()->subDays(12),
-        'due_date' => Carbon::now()->addDays(8),
-        'status' => 'in_progress',
-        'priority' => 'medium',
-        'notes' => 'Client is preparing the documents.',
-    ],
-    [
-        'project_id' => $projects[2]->id,
-        'category_id' => $categories['INV']->id ?? null,
-        'title' => 'Physical Inventory Count Results',
-        'description' => 'Please provide physical inventory count sheets and final inventory listing as of December 31, 2024.',
-        'requestor_id' => 8, // Alex Brown (associate)
-        'assigned_to_id' => 9, // Lisa Chen (client)
-        'date_requested' => Carbon::now()->subDays(20),
-        'due_date' => Carbon::now()->addDays(15),
-        'status' => 'pending',
-        'priority' => 'high',
-        'notes' => 'Coordinate with warehouse team for count observation.',
-    ],
-];
-        foreach ($sampleRequests as $request) {
-            PbcRequest::create($request);
+            // Create a sample PBC request for each project
+            $pbcRequest = PbcRequest::create([
+                'project_id' => $project->id,
+                'template_id' => $at700Template->id,
+                'title' => "AT-700 Annual Audit " . $project->engagement_period->format('Y') . " - " . $project->client->name,
+                'client_name' => $project->client->name,
+                'audit_period' => $project->engagement_period->format('Y-m-d'),
+                'contact_person' => $project->contact_person,
+                'contact_email' => $project->contact_email,
+                'engagement_partner' => $project->engagementPartner?->name,
+                'engagement_manager' => $project->manager?->name,
+                'document_date' => now(),
+                'status' => 'active',
+                'completion_percentage' => 0,
+                'total_items' => 0,
+                'completed_items' => 0,
+                'pending_items' => 0,
+                'overdue_items' => 0,
+                'created_by' => $systemAdmin->id,
+                'assigned_to' => $clientContact?->id,
+                'due_date' => now()->addDays(30), // 30 days from now
+                'notes' => 'Sample PBC request created during seeding process.',
+                'client_notes' => 'Please provide all requested documents in digital format (PDF preferred).',
+                'status_note' => 'Initial request created. Client has been notified.',
+            ]);
+
+            // Create request items from template items
+            $this->createRequestItemsFromTemplate($pbcRequest, $at700Template, $systemAdmin, $clientContact);
+
+            // Update progress
+            $pbcRequest->updateProgress();
+
+            // Update project PBC progress
+            $project->updatePbcProgress();
         }
+
+        $this->command->info('Sample PBC Requests seeded successfully!');
+        $this->command->info('PBC Requests created: ' . PbcRequest::count());
+        $this->command->info('PBC Request Items created: ' . PbcRequestItem::count());
+    }
+
+    private function createRequestItemsFromTemplate($pbcRequest, $template, $systemAdmin, $clientContact)
+    {
+        $templateItems = $template->templateItems()
+            ->with('category')
+            ->orderBy('sort_order')
+            ->get();
+
+        foreach ($templateItems as $templateItem) {
+            $requestItem = PbcRequestItem::create([
+                'pbc_request_id' => $pbcRequest->id,
+                'template_item_id' => $templateItem->id,
+                'category_id' => $templateItem->category_id,
+                'parent_id' => null, // We'll handle this later for sub-items
+                'item_number' => $templateItem->item_number,
+                'sub_item_letter' => $templateItem->sub_item_letter,
+                'description' => $templateItem->description,
+                'sort_order' => $templateItem->sort_order,
+                'status' => 'pending',
+                'date_requested' => now(),
+                'due_date' => now()->addDays(21), // 3 weeks from now
+                'days_outstanding' => 0,
+                'requested_by' => $systemAdmin->id,
+                'assigned_to' => $clientContact?->id,
+                'is_required' => $templateItem->is_required,
+                'is_custom' => false,
+            ]);
+
+            // Simulate some progress for demonstration
+            $this->simulateItemProgress($requestItem, $systemAdmin, $clientContact);
+        }
+
+        // Handle parent-child relationships for sub-items
+        $this->updateParentChildRelationships($pbcRequest);
+    }
+
+    private function updateParentChildRelationships($pbcRequest)
+    {
+        // Get all items for this request
+        $requestItems = $pbcRequest->items()->get();
+
+        // Create a mapping of template items to request items
+        $templateToRequestMap = [];
+        foreach ($requestItems as $item) {
+            if ($item->template_item_id) {
+                $templateToRequestMap[$item->template_item_id] = $item->id;
+            }
+        }
+
+        // Update parent_id for sub-items
+        foreach ($requestItems as $item) {
+            if ($item->template_item_id) {
+                $templateItem = $item->templateItem;
+                if ($templateItem && $templateItem->parent_id) {
+                    $parentRequestItemId = $templateToRequestMap[$templateItem->parent_id] ?? null;
+                    if ($parentRequestItemId) {
+                        $item->update(['parent_id' => $parentRequestItemId]);
+                    }
+                }
+            }
+        }
+    }
+
+    private function simulateItemProgress($requestItem, $systemAdmin, $clientContact)
+    {
+        // Randomly simulate some items as completed for demonstration
+        $random = rand(1, 10);
+
+        if ($random <= 2) {
+            // 20% chance - mark as accepted
+            $requestItem->update([
+                'status' => 'accepted',
+                'date_submitted' => now()->subDays(rand(1, 7)),
+                'date_reviewed' => now()->subDays(rand(0, 3)),
+                'reviewed_by' => $systemAdmin->id,
+                'remarks' => 'Document reviewed and accepted. Good quality submission.',
+            ]);
+        } elseif ($random <= 4) {
+            // 20% chance - mark as submitted (under review)
+            $requestItem->update([
+                'status' => 'submitted',
+                'date_submitted' => now()->subDays(rand(1, 5)),
+            ]);
+        } elseif ($random <= 6) {
+            // 20% chance - mark as rejected
+            $requestItem->update([
+                'status' => 'rejected',
+                'date_submitted' => now()->subDays(rand(3, 10)),
+                'date_reviewed' => now()->subDays(rand(1, 5)),
+                'reviewed_by' => $systemAdmin->id,
+                'remarks' => 'Document quality insufficient. Please resubmit with clearer copies.',
+            ]);
+        } elseif ($random <= 7) {
+            // 10% chance - mark as overdue
+            $requestItem->update([
+                'status' => 'overdue',
+                'due_date' => now()->subDays(rand(1, 7)),
+                'days_outstanding' => now()->diffInDays($requestItem->date_requested),
+            ]);
+        }
+        // Remaining 30% stay as pending
     }
 }

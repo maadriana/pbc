@@ -4,33 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PbcCategory extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'name',
         'code',
         'description',
-        'color_code',
+        'sort_order',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     // Relationships
-    public function pbcRequests()
+    public function templateItems()
     {
-        return $this->hasMany(PbcRequest::class, 'category_id');
+        return $this->hasMany(PbcTemplateItem::class, 'category_id');
     }
 
-    public function templates()
+    public function requestItems()
     {
-        return $this->hasMany(PbcTemplate::class, 'category_id');
+        return $this->hasMany(PbcRequestItem::class, 'category_id');
     }
 
     // Scopes
@@ -39,24 +39,19 @@ class PbcCategory extends Model
         return $query->where('is_active', true);
     }
 
-    public function scopeByCode($query, $code)
+    public function scopeOrdered($query)
     {
-        return $query->where('code', $code);
+        return $query->orderBy('sort_order');
     }
 
     // Helper methods
-    public function getRequestsCount()
+    public function getActiveTemplateItemsCount()
     {
-        return $this->pbcRequests()->count();
+        return $this->templateItems()->where('is_active', true)->count();
     }
 
-    public function getPendingRequestsCount()
+    public function getDisplayNameAttribute()
     {
-        return $this->pbcRequests()->where('status', 'pending')->count();
-    }
-
-    public function getCompletedRequestsCount()
-    {
-        return $this->pbcRequests()->where('status', 'completed')->count();
+        return $this->name;
     }
 }

@@ -256,7 +256,7 @@
                 @endif
 
                 @php
-                    $pendingDocs = App\Models\PbcDocument::where('status', 'pending')->count();
+                    $pendingDocs = App\Models\PbcSubmission::where('status', 'pending')->count();
                 @endphp
                 @if($pendingDocs > 0)
                 <div class="activity-item alert-warning">

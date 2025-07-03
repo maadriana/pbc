@@ -1,86 +1,88 @@
 <?php
 
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | PBC System Configuration
-    |--------------------------------------------------------------------------
-    */
-
     'file_upload' => [
-        'max_size' => env('MAX_FILE_UPLOAD_SIZE', 10240), // KB
-        'allowed_types' => explode(',', env('ALLOWED_FILE_TYPES', 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png,txt,csv')),
-        'max_files_per_request' => env('MAX_FILES_PER_REQUEST', 10),
+        'max_size' => env('PBC_MAX_FILE_SIZE', 10240), // KB
+        'max_files_per_request' => env('PBC_MAX_FILES_PER_REQUEST', 10),
+        'allowed_types' => [
+            'pdf', 'doc', 'docx', 'xls', 'xlsx',
+            'ppt', 'pptx', 'txt', 'csv',
+            'jpg', 'jpeg', 'png', 'gif'
+        ],
+        'allowed_mime_types' => [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+        ],
     ],
 
     'reminders' => [
-        'default_days' => env('DEFAULT_REMINDER_DAYS', 3),
-        'auto_enabled' => env('AUTO_REMINDER_ENABLED', true),
-        'types' => ['initial', 'follow_up', 'urgent', 'final_notice'],
+        'auto_reminders_enabled' => env('PBC_AUTO_REMINDERS', true),
+        'reminder_schedule' => [
+            'initial' => 0, // Send immediately when assigned
+            'follow_up' => 3, // Days before due date
+            'urgent' => 1, // Days before due date
+            'final_notice' => -1, // Days after due date (overdue)
+        ],
     ],
 
-    'company' => [
-        'name' => env('COMPANY_NAME', 'Audit Firm'),
-        'address' => env('COMPANY_ADDRESS', ''),
-        'phone' => env('COMPANY_PHONE', ''),
-        'email' => env('COMPANY_EMAIL', ''),
+    'permissions' => [
+        'system_admin' => [
+            'view_user', 'create_user', 'edit_user', 'delete_user', 'manage_permissions',
+            'view_client', 'create_client', 'edit_client', 'delete_client',
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'download_document', 'approve_document', 'reject_document', 'delete_document',
+            'send_reminder', 'view_audit_log', 'export_reports', 'manage_settings', 'manage_categories',
+            'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
+        ],
+        'engagement_partner' => [
+            'view_client', 'create_client', 'edit_client', 'delete_client',
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'download_document', 'approve_document', 'reject_document',
+            'send_reminder', 'view_audit_log', 'manage_categories',
+            'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
+        ],
+        'manager' => [
+            'view_client', 'create_client', 'edit_client',
+            'view_project', 'create_project', 'edit_project', 'delete_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'download_document', 'approve_document', 'reject_document',
+            'send_reminder', 'manage_categories',
+            'send_messages', 'view_messages', 'create_conversations', 'receive_notifications'
+        ],
+        'associate' => [
+            'view_project', 'create_project', 'edit_project',
+            'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
+            'upload_document', 'download_document', 'approve_document',
+            'send_reminder', 'send_messages', 'view_messages', 'receive_notifications'
+        ],
+        'guest' => [
+            'view_pbc_request', 'edit_pbc_request', 'upload_document', 'download_document',
+            'view_messages', 'receive_notifications'
+        ],
     ],
 
-    'system' => [
-        'overdue_threshold' => env('PBC_OVERDUE_THRESHOLD', 1), // days
-        'warning_threshold' => env('PBC_WARNING_THRESHOLD', 3), // days
-        'auto_archive_days' => env('PBC_AUTO_ARCHIVE_DAYS', 365),
-        'max_document_versions' => env('PBC_MAX_DOCUMENT_VERSIONS', 10),
-    ],
-
-    'notifications' => [
-        'email' => env('NOTIFICATION_EMAIL', 'notifications@example.com'),
-        'send_email' => env('SEND_EMAIL_NOTIFICATIONS', true),
-        'send_sms' => env('SEND_SMS_NOTIFICATIONS', false),
-    ],
-
-    'security' => [
-        'password_min_length' => env('PASSWORD_MIN_LENGTH', 8),
-        'require_special_chars' => env('PASSWORD_REQUIRE_SPECIAL_CHARS', true),
-        'require_numbers' => env('PASSWORD_REQUIRE_NUMBERS', true),
-        'require_uppercase' => env('PASSWORD_REQUIRE_UPPERCASE', true),
-        'lockout_attempts' => env('ACCOUNT_LOCKOUT_ATTEMPTS', 5),
-        'lockout_duration' => env('ACCOUNT_LOCKOUT_DURATION', 30), // minutes
+    'dashboard' => [
+        'recent_activity_limit' => 10,
+        'overdue_warning_days' => 3,
+        'charts_cache_minutes' => 30,
     ],
 
     'audit' => [
-        'enabled' => env('ENABLE_AUDIT_LOGGING', true),
-        'retention_days' => env('AUDIT_LOG_RETENTION_DAYS', 2555), // 7 years
-        'log_user_activities' => env('LOG_USER_ACTIVITIES', true),
-        'log_document_activities' => env('LOG_DOCUMENT_ACTIVITIES', true),
-    ],
-
-    'reports' => [
-        'default_format' => env('DEFAULT_REPORT_FORMAT', 'pdf'),
-        'logo_path' => env('REPORT_LOGO_PATH', 'images/company-logo.png'),
-        'footer_text' => env('REPORT_FOOTER_TEXT', 'Generated by PBC Checklist Management System'),
-    ],
-
-    'features' => [
-        'document_preview' => env('ENABLE_DOCUMENT_PREVIEW', true),
-        'bulk_operations' => env('ENABLE_BULK_OPERATIONS', true),
-        'email_templates' => env('ENABLE_EMAIL_TEMPLATES', true),
-        'custom_fields' => env('ENABLE_CUSTOM_FIELDS', true),
-        'workflow_automation' => env('ENABLE_WORKFLOW_AUTOMATION', true),
-    ],
-
-    'ui' => [
-        'theme_primary_color' => env('THEME_PRIMARY_COLOR', '#3B82F6'),
-        'theme_secondary_color' => env('THEME_SECONDARY_COLOR', '#10B981'),
-        'theme_accent_color' => env('THEME_ACCENT_COLOR', '#F59E0B'),
-        'dark_mode_enabled' => env('DARK_MODE_ENABLED', true),
-        'sidebar_collapsed' => env('SIDEBAR_COLLAPSED', false),
-    ],
-
-    'performance' => [
-        'paginate_per_page' => env('PAGINATE_PER_PAGE', 25),
-        'search_results_limit' => env('SEARCH_RESULTS_LIMIT', 100),
-        'cache_ttl' => env('CACHE_TTL', 3600), // seconds
-        'enable_query_cache' => env('ENABLE_QUERY_CACHE', true),
+        'log_file_operations' => true,
+        'log_permission_changes' => true,
+        'cleanup_days' => 2555, // 7 years
+        'archive_days' => 365, // 1 year
     ],
 ];

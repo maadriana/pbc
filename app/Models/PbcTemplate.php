@@ -4,40 +4,41 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PbcTemplate extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'name',
+        'code',
         'description',
-        'category_id',
-        'engagement_type',
-        'default_description',
-        'default_days_to_complete',
-        'default_priority',
-        'required_fields',
+        'engagement_types',
+        'is_default',
         'is_active',
         'created_by',
     ];
 
     protected $casts = [
-        'default_days_to_complete' => 'integer',
-        'required_fields' => 'array',
+        'engagement_types' => 'array',
+        'is_default' => 'boolean',
         'is_active' => 'boolean',
     ];
 
     // Relationships
-    public function category()
-    {
-        return $this->belongsTo(PbcCategory::class, 'category_id');
-    }
-
-    public function createdBy()
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function templateItems()
+    {
+        return $this->hasMany(PbcTemplateItem::class, 'template_id');
+    }
+
+    public function pbcRequests()
+    {
+        return $this->hasMany(PbcRequest::class, 'template_id');
     }
 
     // Scopes
@@ -46,42 +47,57 @@ class PbcTemplate extends Model
         return $query->where('is_active', true);
     }
 
-    public function scopeByEngagementType($query, $type)
+    public function scopeDefault($query)
     {
-        return $query->where('engagement_type', $type);
+        return $query->where('is_default', true);
     }
 
-    public function scopeByCategory($query, $categoryId)
+    public function scopeForEngagementType($query, $engagementType)
     {
-        return $query->where('category_id', $categoryId);
+        return $query->whereJsonContains('engagement_types', $engagementType)
+                    ->orWhereNull('engagement_types');
     }
 
     // Helper methods
-    public function createPbcRequest($projectId, $requestorId, $assignedToId, $customData = [])
+    public function getItemsGroupedByCategory()
     {
-        $dueDate = now()->addDays($this->default_days_to_complete);
-
-        return PbcRequest::create(array_merge([
-            'project_id' => $projectId,
-            'category_id' => $this->category_id,
-            'title' => $this->name,
-            'description' => $this->default_description,
-            'requestor_id' => $requestorId,
-            'assigned_to_id' => $assignedToId,
-            'date_requested' => now(),
-            'due_date' => $dueDate,
-            'priority' => $this->default_priority,
-            'status' => 'pending',
-        ], $customData));
+        return $this->templateItems()
+            ->with('category')
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('category.name');
     }
 
-    public function getDisplayEngagementTypeAttribute()
+    public function getTotalItemsCount()
     {
-        return ucwords(str_replace('_', ' ', $this->engagement_type));
+        return $this->templateItems()->where('is_active', true)->count();
     }
 
-    public function getDisplayPriorityAttribute()
+    public function canBeUsedForEngagement($engagementType)
     {
-        return ucfirst($this->default_priority);
+        if (empty($this->engagement_types)) {
+            return true; // Can be used for all engagement types
+        }
+
+        return in_array($engagementType, $this->engagement_types);
+    }
+
+    public function duplicateTemplate($newName, $userId)
+    {
+        $newTemplate = $this->replicate();
+        $newTemplate->name = $newName;
+        $newTemplate->code = \Str::slug($newName);
+        $newTemplate->is_default = false;
+        $newTemplate->created_by = $userId;
+        $newTemplate->save();
+
+        // Duplicate all template items
+        foreach ($this->templateItems as $item) {
+            $newItem = $item->replicate();
+            $newItem->template_id = $newTemplate->id;
+            $newItem->save();
+        }
+
+        return $newTemplate;
     }
 }

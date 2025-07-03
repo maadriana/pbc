@@ -10,13 +10,12 @@ return new class extends Migration
     {
         Schema::create('pbc_categories', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('code')->unique();
+            $table->string('name'); // "1. Permanent File", "2. Current File"
+            $table->string('code')->unique(); // "permanent_file", "current_file"
             $table->text('description')->nullable();
-            $table->string('color_code')->default('#3B82F6'); // Default blue color
+            $table->integer('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

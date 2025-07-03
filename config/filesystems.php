@@ -27,6 +27,13 @@ return [
             'throw' => false,
         ],
 
+        // For temporary files
+        'temp' => [
+            'driver' => 'local',
+            'root' => storage_path('app/temp'),
+            'throw' => false,
+        ],
+
         // PBC Comments attachments
         'pbc-comments' => [
             'driver' => 'local',
