@@ -50,7 +50,8 @@ class UserPermissionSeeder extends Seeder
         // Engagement Partner permissions (Level 2) - Project Leadership
         $engagementPartners = User::where('role', 'engagement_partner')->get();
         $partnerPermissions = [
-            // NO User Management
+            // User Management - View Only (for assignment purposes)
+             'view_user',
 
             // Client Management - CRUD All
             'view_client', 'create_client', 'edit_client', 'delete_client',
@@ -83,7 +84,8 @@ class UserPermissionSeeder extends Seeder
         // Manager permissions (Level 3) - Project Execution
         $managers = User::where('role', 'manager')->get();
         $managerPermissions = [
-            // NO User Management
+            //User Management
+             'view_user',
 
             // Client Management - Add/Edit Only (NO DELETE)
             'view_client', 'create_client', 'edit_client',
@@ -116,7 +118,9 @@ class UserPermissionSeeder extends Seeder
         // Associate permissions (Level 4) - Task Execution
         $associates = User::where('role', 'associate')->get();
         $associatePermissions = [
-            // NO User Management
+            //User Management
+             'view_user',
+
             // NO Client Management
 
             // Project Management - Add/Edit Only (NO DELETE)

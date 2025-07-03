@@ -182,30 +182,33 @@ class UserService
                 'manage_settings', 'view_dashboard'
             ],
             'engagement_partner' => [
+                'view_user',
                 'view_client', 'create_client', 'edit_client', 'delete_client',
                 'view_project', 'create_project', 'edit_project', 'delete_project',
                 'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
                 'upload_document', 'approve_document', 'delete_document', 'view_document',
                 'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
                 'view_analytics', 'export_reports', 'view_audit_log',
-                'view_dashboard'
+                'view_dashboard',
             ],
             'manager' => [
+                'view_user',
                 'view_client', 'create_client', 'edit_client',
                 'view_project', 'create_project', 'edit_project', 'delete_project',
                 'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
                 'upload_document', 'approve_document', 'delete_document', 'view_document',
                 'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
                 'view_analytics', 'export_reports', 'view_audit_log',
-                'view_dashboard'
+                'view_dashboard',
             ],
             'associate' => [
+                'view_user',
                 'view_project', 'create_project', 'edit_project',
                 'view_pbc_request', 'create_pbc_request', 'edit_pbc_request', 'delete_pbc_request',
                 'upload_document', 'approve_document', 'delete_document', 'view_document',
                 'send_reminder', 'receive_reminder', 'view_messages', 'send_messages',
                 'view_analytics', 'export_reports', 'view_audit_log',
-                'view_dashboard'
+                'view_dashboard',
             ],
             'guest' => [
                 'upload_document', 'view_document',

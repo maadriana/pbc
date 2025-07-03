@@ -1516,37 +1516,25 @@
             selectedRequest: null,
             errors: {},
             bulkAssignUserId: '',
-            csrfToken: '',
 
             // Initialize
             async init() {
                 console.log('🚀 PBC Request Management Init Starting');
-                this.setupCsrfToken();
                 await this.loadSupportingData();
                 await this.loadPbcRequests();
                 await this.loadStats();
             },
 
-            // Setup CSRF token for all requests
-            setupCsrfToken() {
-                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                if (!token) {
-                    console.error('❌ CSRF token not found!');
-                    return;
-                }
-                this.csrfToken = token;
-                console.log('✅ CSRF token found and configured');
-            },
-
-            // Helper method to get default fetch options with CSRF
+            // Helper method to get default fetch options with CSRF and proper headers
             getFetchOptions(method = 'GET', data = null) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
                 const options = {
                     method: method,
                     headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': this.csrfToken
+                        'X-CSRF-TOKEN': token || ''
                     },
                     credentials: 'same-origin'
                 };
@@ -1691,7 +1679,7 @@
                     } else {
                         if (result.errors) {
                             this.errors = result.errors;
-log('⚠️ Validation errors:', this.errors);
+                            console.log('⚠️ Validation errors:', this.errors);
                         } else {
                             this.showError(result.message || 'Failed to save PBC request');
                         }

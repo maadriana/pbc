@@ -3,14 +3,13 @@
 namespace App\Services;
 
 use App\Models\PbcCategory;
-use App\Models\AuditLog;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class PbcCategoryService
 {
     public function getFilteredCategories(array $filters): LengthAwarePaginator
     {
-        $query = PbcCategory::withCount(['pbcRequests', 'templates'])
+        $query = PbcCategory::query()
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -28,52 +27,17 @@ class PbcCategoryService
 
     public function createCategory(array $data): PbcCategory
     {
-        $category = PbcCategory::create($data);
-
-        $this->logActivity('category_created', $category, 'Category created');
-
-        return $category;
+        return PbcCategory::create($data);
     }
 
     public function updateCategory(PbcCategory $category, array $data): PbcCategory
     {
-        $oldData = $category->toArray();
         $category->update($data);
-
-        $this->logActivity('category_updated', $category, 'Category updated', $oldData);
-
         return $category->fresh();
     }
 
     public function deleteCategory(PbcCategory $category): bool
     {
-        $this->logActivity('category_deleted', $category, 'Category deleted');
-
         return $category->delete();
-    }
-
-    private function logActivity(string $action, PbcCategory $category, string $description, array $oldData = null): void
-    {
-        // Only try to log if AuditLog model exists and user is authenticated
-        if (!class_exists('App\Models\AuditLog') || !auth()->check()) {
-            return;
-        }
-
-        try {
-            AuditLog::create([
-                'user_id' => auth()->id(),
-                'action' => $action,
-                'model_type' => PbcCategory::class,
-                'model_id' => $category->id,
-                'old_values' => $oldData,
-                'new_values' => $category->toArray(),
-                'description' => $description,
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-            ]);
-        } catch (\Exception $e) {
-            // Silent fail if logging doesn't work
-            \Log::warning('Category audit logging failed: ' . $e->getMessage());
-        }
     }
 }

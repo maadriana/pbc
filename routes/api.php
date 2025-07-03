@@ -77,7 +77,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // PBC Document Management - FIXED ROUTES
-        Route::get('pbc-documents-stats', [PbcDocumentController::class, 'getStats']);
+        Route::get('pbc-documents/stats', [PbcDocumentController::class, 'getStats']);
         Route::apiResource('pbc-documents', PbcDocumentController::class);
 
         Route::prefix('pbc-documents')->group(function () {
