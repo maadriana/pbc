@@ -18,15 +18,34 @@ return [
             'throw' => false,
         ],
 
-        // PBC Documents disk
-        'pbc-documents' => [
-            'driver' => 'local',
-            'root' => storage_path('app/pbc-documents'),
-            'url' => env('APP_URL').'/storage/pbc-documents',
-            'visibility' => 'private', // Private for security
-            'throw' => false,
-        ],
+    'pbc-documents' => [
+    'driver' => 'local',
+    'root' => storage_path('app/pbc-documents'),
+    'url' => env('APP_URL').'/storage/pbc-documents',
+    'visibility' => 'private',
+    'throw' => false,
+],
 
+    'pbc-comments' => [
+    'driver' => 'local',
+    'root' => storage_path('app/pbc-comments'),
+    'visibility' => 'private',
+    'throw' => false,
+],
+
+    'temp' => [
+    'driver' => 'local',
+    'root' => storage_path('app/temp'),
+    'visibility' => 'private',
+    'throw' => false,
+],
+
+    'exports' => [
+    'driver' => 'local',
+    'root' => storage_path('app/exports'),
+    'visibility' => 'private',
+    'throw' => false,
+],
         // For temporary files
         'temp' => [
             'driver' => 'local',
@@ -34,14 +53,7 @@ return [
             'throw' => false,
         ],
 
-        // PBC Comments attachments
-        'pbc-comments' => [
-            'driver' => 'local',
-            'root' => storage_path('app/pbc-comments'),
-            'url' => env('APP_URL').'/storage/pbc-comments',
-            'visibility' => 'private',
-            'throw' => false,
-        ],
+
 
         's3' => [
             'driver' => 's3',

@@ -7,18 +7,18 @@
     </div>
 
     <nav class="sidebar-nav">
-        <!-- MAIN SECTION - All users can access -->
-        <div class="nav-section">
-            <div class="nav-section-title">Main</div>
-            <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div>
-                <span class="nav-text">Dashboard</span>
-            </a>
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-chart-line"></i></div>
-                <span class="nav-text">Progress Tracker</span>
-            </a>
-        </div>
+<!-- MAIN SECTION - All users can access -->
+<div class="nav-section">
+    <div class="nav-section-title">Main</div>
+    <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+        <div class="nav-icon"><i class="fas fa-tachometer-alt"></i></div>
+        <span class="nav-text">Dashboard</span>
+    </a>
+    <a href="{{ route('progress.index') }}" class="nav-item {{ request()->routeIs('progress.*') ? 'active' : '' }}">
+        <div class="nav-icon"><i class="fas fa-chart-line"></i></div>
+        <span class="nav-text">Progress Tracker</span>
+    </a>
+</div>
 
         <!-- MANAGEMENT SECTION - Based on specific permissions -->
         @if(auth()->user()->hasPermission('view_user') ||
@@ -57,61 +57,23 @@
             <a href="{{ route('pbc-requests.index') }}" class="nav-item {{ request()->routeIs('pbc-requests.*') ? 'active' : '' }}">
                 <div class="nav-icon"><i class="fas fa-tasks"></i></div>
                 <span class="nav-text">PBC Requests</span>
-                @php
-                    try {
-                        // Use the correct PbcRequest model
-                        $pendingCount = \App\Models\PbcRequest::where('status', 'draft')
-                            ->orWhere('status', 'active')
-                            ->count();
-                    } catch (\Exception $e) {
-                        $pendingCount = 0;
-                    }
-                @endphp
-                @if($pendingCount > 0)
-                    <span class="nav-badge">{{ $pendingCount }}</span>
-                @endif
+                {{-- Static badge for UI viewing purposes --}}
+                <span class="nav-badge">1</span>
+            </a>
+            @endif
             </a>
             @endif
         </div>
-        @endif
+
 
         <!-- DOCUMENTS SECTION - All users have upload access -->
         @if(auth()->user()->hasPermission('upload_document') || auth()->user()->hasPermission('view_document'))
         <div class="nav-section">
             <div class="nav-section-title">Documents</div>
 
-            {{-- Upload Center - All users have upload_document permission --}}
-            @if(auth()->user()->hasPermission('upload_document'))
-            <a href="{{ route('upload-center') }}" class="nav-item {{ request()->routeIs('upload-center') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                <span class="nav-text">Upload Center</span>
-            </a>
-            @endif
-
-            {{-- Document Review - Those who can approve documents --}}
-            @if(auth()->user()->hasPermission('approve_document'))
-            <a href="{{ route('pbc-submissions.index') }}" class="nav-item {{ request()->routeIs('pbc-submissions.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-file-alt"></i></div>
-                <span class="nav-text">Document Review</span>
-                @php
-                    try {
-                        // Use the correct PbcSubmission model
-                        $pendingDocs = \App\Models\PbcSubmission::where('status', 'pending')
-                            ->orWhere('status', 'under_review')
-                            ->count();
-                    } catch (\Exception $e) {
-                        $pendingDocs = 0;
-                    }
-                @endphp
-                @if($pendingDocs > 0)
-                    <span class="nav-badge">{{ $pendingDocs }}</span>
-                @endif
-            </a>
-            @endif
-
             {{-- Document Archive - Show for all users (different access levels) --}}
             @if(auth()->user()->hasPermission('view_document'))
-            <a href="{{ route('pbc-submissions.index') }}?status=accepted" class="nav-item">
+            <a href="#" class="nav-item">
                 <div class="nav-icon"><i class="fas fa-archive"></i></div>
                 <span class="nav-text">Document Archive</span>
             </a>
@@ -133,48 +95,11 @@
 
             {{-- Reminders - Show for users who can send reminders --}}
             @if(auth()->user()->hasPermission('send_reminder'))
-            <a href="{{ route('pbc-reminders.index') }}" class="nav-item {{ request()->routeIs('pbc-reminders.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-bell"></i></div>
-                <span class="nav-text">Reminders</span>
-            </a>
             @elseif(auth()->user()->hasPermission('receive_notifications'))
             {{-- Guests can see reminders but can't send them --}}
-            <a href="{{ route('pbc-reminders.index') }}" class="nav-item {{ request()->routeIs('pbc-reminders.*') ? 'active' : '' }}">
+            <a href="#" class="nav-item">
                 <div class="nav-icon"><i class="fas fa-bell"></i></div>
                 <span class="nav-text">My Reminders</span>
-            </a>
-            @endif
-        </div>
-        @endif
-
-        <!-- REPORTS SECTION - Permission-based access -->
-        @if(auth()->user()->hasPermission('view_dashboard') ||
-            auth()->user()->hasPermission('view_audit_log') ||
-            auth()->user()->hasPermission('export_reports'))
-        <div class="nav-section">
-            <div class="nav-section-title">Reports</div>
-
-            {{-- Analytics - Show for all users (different data based on role) --}}
-            @if(auth()->user()->hasPermission('view_dashboard'))
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-chart-bar"></i></div>
-                <span class="nav-text">Analytics</span>
-            </a>
-            @endif
-
-            {{-- Export Reports - Only those with export_reports permission --}}
-            @if(auth()->user()->hasPermission('export_reports'))
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-file-export"></i></div>
-                <span class="nav-text">Export Reports</span>
-            </a>
-            @endif
-
-            {{-- Audit Trail - Only those with view_audit_log permission --}}
-            @if(auth()->user()->hasPermission('view_audit_log'))
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-history"></i></div>
-                <span class="nav-text">Audit Trail</span>
             </a>
             @endif
         </div>
@@ -188,14 +113,6 @@
                 <div class="nav-icon"><i class="fas fa-cog"></i></div>
                 <span class="nav-text">Settings</span>
             </a>
-
-            {{-- PBC Categories - For system configuration --}}
-            @if(auth()->user()->hasPermission('manage_categories'))
-            <a href="{{ route('pbc-categories.index') }}" class="nav-item {{ request()->routeIs('pbc-categories.*') ? 'active' : '' }}">
-                <div class="nav-icon"><i class="fas fa-tags"></i></div>
-                <span class="nav-text">PBC Categories</span>
-            </a>
-            @endif
         </div>
         @endif
     </nav>
