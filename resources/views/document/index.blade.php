@@ -194,13 +194,13 @@
                                         <span x-text="'Accepted Files (' + project.acceptedFiles + ')'"></span>
                                     </button>
                                     <button class="btn btn-sm btn-danger files-btn rejected-btn" @click="openRejectedFilesModal(project)">
-                                        <span x-text="'Rejected Files(' + project.rejectedFiles + ')'"></span>
+                                        <span x-text="'Rejected Files (' + project.rejectedFiles + ')'"></span>
                                     </button>
                                 </div>
                             </td>
                             <td>
                                 <div class="actions-cell">
-                                    <button class="btn btn-xs btn-secondary" @click="viewDocuments(project)" title="View All Documents">
+                                    <button class="btn btn-xs btn-secondary" @click="openProjectFilesModal(project)" title="View All Documents">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
@@ -209,6 +209,103 @@
                     </template>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- PROJECT FILES MODAL -->
+    <div class="files-modal-overlay" x-show="showProjectFilesModal" x-transition @click="closeProjectFilesModal()">
+        <div class="files-modal" @click.stop>
+            <!-- Modal Header -->
+            <div class="files-modal-header">
+                <h3 class="files-modal-title">
+                    <i class="fas fa-folder-open text-blue-600"></i>
+                    Project Files - <span x-text="selectedProject?.clientName || 'Project'"></span>
+                </h3>
+                <button class="files-modal-close" @click="closeProjectFilesModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="files-modal-body">
+                <div class="files-section">
+                    <div class="files-section-header">
+                        <div class="section-title">
+                            <i class="fas fa-folder-open section-icon project-files"></i>
+                            <span class="section-text" x-text="'All Project Files (' + (allProjectFiles?.length || 0) + ')'"></span>
+                        </div>
+                        <button class="btn btn-sm btn-primary download-all-btn" @click="downloadAllProjectFiles()">
+                            <i class="fas fa-download"></i>
+                            Download All
+                        </button>
+                    </div>
+
+                    <div class="files-table-container">
+                        <table class="files-table">
+                            <thead>
+                                <tr>
+                                    <th>Particulars</th>
+                                    <th>File Name</th>
+                                    <th>Attached By</th>
+                                    <th>File Type</th>
+                                    <th>Size</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(file, index) in allProjectFiles" :key="index">
+                                    <tr>
+                                        <td>
+                                            <div class="particulars-cell">
+                                                <span x-text="file.particulars"></span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="file-name-cell">
+                                                <i class="fas fa-file-pdf file-icon pdf" x-show="file.type === 'PDF'"></i>
+                                                <i class="fas fa-file-excel file-icon excel" x-show="file.type === 'XLSX'"></i>
+                                                <i class="fas fa-file-word file-icon word" x-show="file.type === 'DOCX'"></i>
+                                                <span x-text="file.name"></span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="attached-by-cell">
+                                                <span x-text="file.attachedBy"></span>
+                                            </div>
+                                        </td>
+                                        <td><span class="file-type" :class="file.type.toLowerCase()" x-text="file.type"></span></td>
+                                        <td x-text="file.size"></td>
+                                        <td x-text="file.date"></td>
+                                        <td>
+                                            <span class="status-badge" :class="file.status === 'accepted' ? 'status-accepted' : 'status-rejected'" x-text="file.status.charAt(0).toUpperCase() + file.status.slice(1)"></span>
+                                        </td>
+                                        <td>
+                                            <div class="file-actions">
+                                                <button class="btn btn-xs btn-secondary" @click="viewFile(file)" title="View File">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-xs btn-primary" @click="downloadFile(file)" title="Download File">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="files-modal-footer">
+                <button class="btn btn-secondary" @click="closeProjectFilesModal()">
+                    <i class="fas fa-arrow-left"></i>
+                    Back
+                </button>
+            </div>
         </div>
     </div>
 
@@ -578,7 +675,7 @@
         background: #DC2626;
     }
 
-    /* Rest of styles same as progress tracker... */
+    /* Filters Section */
     .filters-section {
         background: white;
         border-radius: 12px;
@@ -776,7 +873,7 @@
         min-width: 80px;
     }
 
-    /* Files Modal Styles (same as progress tracker) */
+    /* Files Modal Styles */
     .files-modal-overlay {
         position: fixed;
         top: 0;
@@ -794,7 +891,7 @@
     .files-modal {
         background: white;
         border-radius: 16px;
-        max-width: 1200px;
+        max-width: 1400px;
         width: 100%;
         max-height: 90vh;
         box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
@@ -893,6 +990,11 @@
         color: #991B1B;
     }
 
+    .section-icon.project-files {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
     .section-text {
         font-weight: 600;
         color: #374151;
@@ -928,7 +1030,7 @@
     .files-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 700px;
+        min-width: 1000px;
         font-size: 0.8rem;
     }
 
@@ -963,6 +1065,19 @@
         border-bottom: none;
     }
 
+    .particulars-cell {
+        max-width: 200px;
+        min-width: 150px;
+    }
+
+    .particulars-cell span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+
     .file-name-cell {
         display: flex;
         align-items: center;
@@ -976,6 +1091,10 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         flex: 1;
+    }
+
+    .attached-by-cell {
+        min-width: 120px;
     }
 
     .file-icon {
@@ -1029,6 +1148,26 @@
         color: #2563EB;
     }
 
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-badge.status-accepted {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-badge.status-rejected {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
     .file-actions {
         display: flex;
         gap: 0.25rem;
@@ -1062,6 +1201,10 @@
         color: #DC2626;
     }
 
+    .text-blue-600 {
+        color: #2563EB;
+    }
+
     /* Responsive Design */
     @media (max-width: 768px) {
         .summary-cards {
@@ -1080,11 +1223,24 @@
         .header-actions {
             justify-content: stretch;
         }
+
+        .files-modal {
+            margin: 0.5rem;
+            max-width: calc(100vw - 1rem);
+        }
+
+        .files-table {
+            min-width: 800px;
+        }
     }
 
     @media (max-width: 480px) {
         .summary-cards {
             grid-template-columns: 1fr;
+        }
+
+        .files-table {
+            min-width: 600px;
         }
     }
 </style>
@@ -1095,7 +1251,7 @@
 <script>
     function documentArchiveManagement() {
         return {
-            // Data - same projects as progress tracker but focused on files
+            // Data
             projects: [
                 {
                     id: 1,
@@ -1137,6 +1293,7 @@
             selectedProject: null,
             acceptedFilesList: [],
             rejectedFilesList: [],
+            allProjectFiles: [],
             stats: {
                 totalProjects: 3,
                 acceptedFiles: 65,
@@ -1155,6 +1312,7 @@
             // Modal states
             showAcceptedModal: false,
             showRejectedModal: false,
+            showProjectFilesModal: false,
 
             // Initialize
             init() {
@@ -1177,6 +1335,13 @@
                 console.log('Opening rejected files modal for:', project.clientName);
             },
 
+            openProjectFilesModal(project) {
+                this.selectedProject = project;
+                this.allProjectFiles = this.generateAllProjectFiles(project);
+                this.showProjectFilesModal = true;
+                console.log('Opening project files modal for:', project.clientName);
+            },
+
             closeAcceptedModal() {
                 this.showAcceptedModal = false;
                 this.selectedProject = null;
@@ -1189,7 +1354,165 @@
                 this.rejectedFilesList = [];
             },
 
-            // Generate fake accepted files data (same as progress tracker)
+            closeProjectFilesModal() {
+                this.showProjectFilesModal = false;
+                this.selectedProject = null;
+                this.allProjectFiles = [];
+            },
+
+            // Generate all project files data
+            generateAllProjectFiles(project) {
+                const allFiles = [
+                    {
+                        particulars: 'Articles of Incorporation and Bylaws',
+                        name: 'Articles_of_Incorporation.pdf',
+                        attachedBy: 'John Martinez',
+                        type: 'PDF',
+                        size: '2.4 MB',
+                        date: 'Jul 8, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'BIR Certificate of Registration',
+                        name: 'BIR_Certificate_2024.pdf',
+                        attachedBy: 'Sarah Wilson',
+                        type: 'PDF',
+                        size: '856 KB',
+                        date: 'Jul 7, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Financial Statements Q4 2024',
+                        name: 'Financial_Statements_Q4.xlsx',
+                        attachedBy: 'Carlos Reyes',
+                        type: 'XLSX',
+                        size: '3.2 MB',
+                        date: 'Jul 6, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Board Meeting Minutes',
+                        name: 'Board_Minutes_December.docx',
+                        attachedBy: 'Maria Garcia',
+                        type: 'DOCX',
+                        size: '124 KB',
+                        date: 'Jul 5, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Bank Statements 2024',
+                        name: 'Bank_Statements_2024.pdf',
+                        attachedBy: 'Anna Thompson',
+                        type: 'PDF',
+                        size: '4.1 MB',
+                        date: 'Jul 4, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Trial Balance Year End',
+                        name: 'Trial_Balance_2024.xlsx',
+                        attachedBy: 'David Wilson',
+                        type: 'XLSX',
+                        size: '1.8 MB',
+                        date: 'Jul 3, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'General Ledger Complete',
+                        name: 'General_Ledger_2024.xlsx',
+                        attachedBy: 'Michelle Lopez',
+                        type: 'XLSX',
+                        size: '8.7 MB',
+                        date: 'Jul 2, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Incomplete Financial Report',
+                        name: 'Incomplete_Financial_Report.pdf',
+                        attachedBy: 'Kevin Taylor',
+                        type: 'PDF',
+                        size: '1.2 MB',
+                        date: 'Jul 9, 2025',
+                        status: 'rejected'
+                    },
+                    {
+                        particulars: 'Bank Statement - Unclear Quality',
+                        name: 'Unclear_Bank_Statement.pdf',
+                        attachedBy: 'Amanda Clark',
+                        type: 'PDF',
+                        size: '2.1 MB',
+                        date: 'Jul 8, 2025',
+                        status: 'rejected'
+                    },
+                    {
+                        particulars: 'Contract Document - Missing Pages',
+                        name: 'Missing_Pages_Document.docx',
+                        attachedBy: 'Ryan Hall',
+                        type: 'DOCX',
+                        size: '89 KB',
+                        date: 'Jul 7, 2025',
+                        status: 'rejected'
+                    },
+                    {
+                        particulars: 'Tax Returns 2023',
+                        name: 'Tax_Returns_2023.pdf',
+                        attachedBy: 'Natalie White',
+                        type: 'PDF',
+                        size: '1.9 MB',
+                        date: 'Jun 30, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Payroll Summary Annual',
+                        name: 'Payroll_Summary_2024.xlsx',
+                        attachedBy: 'James Rodriguez',
+                        type: 'XLSX',
+                        size: '945 KB',
+                        date: 'Jun 29, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Fixed Assets Register',
+                        name: 'Fixed_Assets_Register.pdf',
+                        attachedBy: 'Emily Davis',
+                        type: 'PDF',
+                        size: '1.2 MB',
+                        date: 'Jun 28, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Insurance Policy Documents',
+                        name: 'Insurance_Policies.pdf',
+                        attachedBy: 'Michael Brown',
+                        type: 'PDF',
+                        size: '890 KB',
+                        date: 'Jun 26, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Legal Documents and Contracts',
+                        name: 'Legal_Documents.docx',
+                        attachedBy: 'Jennifer Lee',
+                        type: 'DOCX',
+                        size: '234 KB',
+                        date: 'Jun 25, 2025',
+                        status: 'accepted'
+                    },
+                    {
+                        particulars: 'Outdated Certificate Copy',
+                        name: 'Outdated_Certificate.pdf',
+                        attachedBy: 'Lisa Chen',
+                        type: 'PDF',
+                        size: '567 KB',
+                        date: 'Jun 24, 2025',
+                        status: 'rejected'
+                    }
+                ];
+
+                return allFiles;
+            },
+
+            // Generate fake accepted files data
             generateAcceptedFiles(project) {
                 const acceptedFiles = [
                     { name: 'Articles_of_Incorporation.pdf', type: 'PDF', size: '2.4 MB', dateAccepted: 'Jul 8, 2025' },
@@ -1212,7 +1535,7 @@
                 return acceptedFiles.slice(0, project.acceptedFiles);
             },
 
-            // Generate fake rejected files data (same as progress tracker)
+            // Generate fake rejected files data
             generateRejectedFiles(project) {
                 const rejectedFiles = [
                     { name: 'Incomplete_Financial_Report.pdf', type: 'PDF', size: '1.2 MB', dateRejected: 'Jul 9, 2025' },
@@ -1227,11 +1550,6 @@
             },
 
             // Utility functions
-            viewDocuments(project) {
-                console.log('Viewing all documents for:', project.clientName);
-                this.showAlert(`Opening document archive for ${project.clientName}`, 'info');
-            },
-
             exportDocuments() {
                 console.log('Exporting document archive...');
                 this.showAlert('Exporting document archive', 'info');
@@ -1263,6 +1581,11 @@
                 this.showAlert(`Opening ${file.name} for preview`, 'info');
             },
 
+            downloadFile(file) {
+                console.log('Downloading file:', file.name);
+                this.showAlert(`Downloading ${file.name}`, 'success');
+            },
+
             downloadAllAccepted() {
                 console.log('Downloading all accepted files for:', this.selectedProject?.clientName);
                 this.showAlert(`Downloading all accepted files for ${this.selectedProject?.clientName}`, 'success');
@@ -1271,6 +1594,11 @@
             downloadAllRejected() {
                 console.log('Downloading all rejected files for:', this.selectedProject?.clientName);
                 this.showAlert(`Downloading all rejected files for ${this.selectedProject?.clientName}`, 'warning');
+            },
+
+            downloadAllProjectFiles() {
+                console.log('Downloading all project files for:', this.selectedProject?.clientName);
+                this.showAlert(`Downloading all project files for ${this.selectedProject?.clientName}`, 'success');
             },
 
             // Alert system
@@ -1300,7 +1628,7 @@
     }
 </script>
 
-<!-- Alert Styles (same as progress tracker) -->
+<!-- Alert Styles -->
 <style>
     .alert {
         position: fixed;

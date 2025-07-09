@@ -699,14 +699,13 @@
     }
 
     .table-container {
-        overflow-x: auto;
+        overflow-x: hidden;
     }
 
-    .progress-requests-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 1200px;
-    }
+.progress-requests-table {
+    min-width: unset;
+    table-layout: fixed;
+}
 
     .progress-requests-table th {
         padding: 1rem 1.5rem;
