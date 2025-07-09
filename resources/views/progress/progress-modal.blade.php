@@ -42,19 +42,19 @@
             </div>
 
             <!-- Progress Categories -->
-            <div class="progress-categories">
+            <div class="progress-categories" x-data="progressModal()">
                 <div class="category-tabs">
-                    <button class="category-tab active" @click="switchTab('completed')" :class="{ 'active': activeTab === 'completed' }" x-data="{ activeTab: 'completed' }">
+                    <button class="category-tab" :class="{ 'active': activeTab === 'completed' }" @click="switchTab('completed')">
                         <i class="fas fa-check-circle"></i>
                         <span>Completed</span>
                         <span class="tab-count" x-text="completedItems.length"></span>
                     </button>
-                    <button class="category-tab" @click="switchTab('pending')" :class="{ 'active': activeTab === 'pending' }">
+                    <button class="category-tab" :class="{ 'active': activeTab === 'pending' }" @click="switchTab('pending')">
                         <i class="fas fa-clock"></i>
                         <span>Pending</span>
                         <span class="tab-count" x-text="pendingItems.length"></span>
                     </button>
-                    <button class="category-tab" @click="switchTab('overdue')" :class="{ 'active': activeTab === 'overdue' }">
+                    <button class="category-tab" :class="{ 'active': activeTab === 'overdue' }" @click="switchTab('overdue')">
                         <i class="fas fa-exclamation-triangle"></i>
                         <span>Overdue</span>
                         <span class="tab-count" x-text="overdueItems.length"></span>
@@ -64,71 +64,171 @@
                 <!-- Tab Content -->
                 <div class="tab-content">
                     <!-- Completed Items -->
-                    <div class="tab-pane" x-show="activeTab === 'completed'" x-data="{ activeTab: 'completed' }">
-                        <div class="items-list">
-                            <template x-for="(item, index) in completedItems" :key="index">
-                                <div class="progress-item completed">
-                                    <div class="item-icon">
-                                        <i class="fas fa-check-circle text-green-600"></i>
-                                    </div>
-                                    <div class="item-details">
-                                        <div class="item-title" x-text="item.title"></div>
-                                        <div class="item-meta">
-                                            <span class="item-date" x-text="'Completed: ' + item.completedDate"></span>
-                                            <span class="item-assignee" x-text="'By: ' + item.assignee"></span>
-                                        </div>
-                                    </div>
-                                    <div class="item-status">
-                                        <span class="status-badge status-completed">Completed</span>
-                                    </div>
-                                </div>
-                            </template>
+                    <div class="tab-pane" x-show="activeTab === 'completed'">
+                        <div class="items-table-container">
+                            <table class="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>Particulars</th>
+                                        <th>Assigned To</th>
+                                        <th>Date Requested</th>
+                                        <th>Files</th>
+                                        <th>Received Date</th>
+                                        <th>Requested By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, index) in completedItems" :key="index">
+                                        <tr>
+                                            <td>
+                                                <div class="particulars-cell">
+                                                    <i class="fas fa-check-circle text-green-600 item-status-icon"></i>
+                                                    <span x-text="item.particulars"></span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="assignee-name" x-text="item.assignedTo"></span>
+                                            </td>
+                                            <td>
+                                                <span class="date-text" x-text="item.dateRequested"></span>
+                                            </td>
+                                            <td>
+                                                <div class="files-cell">
+                                                    <template x-for="(file, fileIndex) in item.files" :key="fileIndex">
+                                                        <div class="file-item-small">
+                                                            <i class="fas fa-file-pdf file-icon-small" x-show="file.type === 'PDF'"></i>
+                                                            <i class="fas fa-file-excel file-icon-small" x-show="file.type === 'XLSX'"></i>
+                                                            <i class="fas fa-file-word file-icon-small" x-show="file.type === 'DOCX'"></i>
+                                                            <div class="file-details-small">
+                                                                <span class="file-name-small" x-text="file.name"></span>
+                                                                <span class="file-date-small" x-text="'Submitted: ' + file.submitDate"></span>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="date-text received-date" x-text="item.receivedDate"></span>
+                                            </td>
+                                            <td>
+                                                <span class="requested-by-name" x-text="item.requestedBy"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
                     <!-- Pending Items -->
                     <div class="tab-pane" x-show="activeTab === 'pending'">
-                        <div class="items-list">
-                            <template x-for="(item, index) in pendingItems" :key="index">
-                                <div class="progress-item pending">
-                                    <div class="item-icon">
-                                        <i class="fas fa-clock text-yellow-600"></i>
-                                    </div>
-                                    <div class="item-details">
-                                        <div class="item-title" x-text="item.title"></div>
-                                        <div class="item-meta">
-                                            <span class="item-date" x-text="'Due: ' + item.dueDate"></span>
-                                            <span class="item-assignee" x-text="'Assigned: ' + item.assignee"></span>
-                                        </div>
-                                    </div>
-                                    <div class="item-status">
-                                        <span class="status-badge status-pending">Pending</span>
-                                    </div>
-                                </div>
-                            </template>
+                        <!-- Bulk Actions for Pending -->
+                        <div class="bulk-actions-header">
+                            <button class="btn btn-sm btn-warning bulk-action-btn" @click="reminderAll('pending')" title="Send Reminder to All Pending Items">
+                                <i class="fas fa-bell"></i>
+                                Reminder All
+                            </button>
+                        </div>
+
+                        <div class="items-table-container">
+                            <table class="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>Particulars</th>
+                                        <th>Assigned To</th>
+                                        <th>Date Requested</th>
+                                        <th>Due Date</th>
+                                        <th>Requested By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, index) in pendingItems" :key="index">
+                                        <tr>
+                                            <td>
+                                                <div class="particulars-cell">
+                                                    <i class="fas fa-clock text-yellow-600 item-status-icon"></i>
+                                                    <span x-text="item.particulars"></span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="assignee-name" x-text="item.assignedTo"></span>
+                                            </td>
+                                            <td>
+                                                <span class="date-text" x-text="item.dateRequested"></span>
+                                            </td>
+                                            <td>
+                                                <span class="date-text due-date" x-text="item.dueDate"></span>
+                                            </td>
+                                            <td>
+                                                <span class="requested-by-name" x-text="item.requestedBy"></span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-xs btn-warning reminder-btn" @click="sendReminder(item)" title="Send Reminder">
+                                                    <i class="fas fa-bell"></i>
+                                                    Reminder
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
                     <!-- Overdue Items -->
                     <div class="tab-pane" x-show="activeTab === 'overdue'">
-                        <div class="items-list">
-                            <template x-for="(item, index) in overdueItems" :key="index">
-                                <div class="progress-item overdue">
-                                    <div class="item-icon">
-                                        <i class="fas fa-exclamation-triangle text-red-600"></i>
-                                    </div>
-                                    <div class="item-details">
-                                        <div class="item-title" x-text="item.title"></div>
-                                        <div class="item-meta">
-                                            <span class="item-date" x-text="'Overdue: ' + item.overdueBy + ' days'"></span>
-                                            <span class="item-assignee" x-text="'Assigned: ' + item.assignee"></span>
-                                        </div>
-                                    </div>
-                                    <div class="item-status">
-                                        <span class="status-badge status-overdue">Overdue</span>
-                                    </div>
-                                </div>
-                            </template>
+                        <!-- Bulk Actions for Overdue -->
+                        <div class="bulk-actions-header">
+                            <button class="btn btn-sm btn-danger bulk-action-btn" @click="urgentAll('overdue')" title="Send Urgent Reminder to All Overdue Items">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Urgent All
+                            </button>
+                        </div>
+
+                        <div class="items-table-container">
+                            <table class="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>Particulars</th>
+                                        <th>Assigned To</th>
+                                        <th>Date Requested</th>
+                                        <th>Days Outstanding</th>
+                                        <th>Requested By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, index) in overdueItems" :key="index">
+                                        <tr>
+                                            <td>
+                                                <div class="particulars-cell">
+                                                    <i class="fas fa-exclamation-triangle text-red-600 item-status-icon"></i>
+                                                    <span x-text="item.particulars"></span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="assignee-name" x-text="item.assignedTo"></span>
+                                            </td>
+                                            <td>
+                                                <span class="date-text" x-text="item.dateRequested"></span>
+                                            </td>
+                                            <td>
+                                                <span class="overdue-badge" x-text="item.daysOutstanding + ' days'"></span>
+                                            </td>
+                                            <td>
+                                                <span class="requested-by-name" x-text="item.requestedBy"></span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-xs btn-danger reminder-btn" @click="sendUrgentReminder(item)" title="Send Urgent Reminder">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    Urgent
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -169,7 +269,7 @@
     .progress-modal {
         background: white;
         border-radius: 16px;
-        max-width: 900px;
+        max-width: 1200px;
         width: 100%;
         max-height: 90vh;
         box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
@@ -220,7 +320,7 @@
         padding: 1.5rem 2rem;
         display: flex;
         flex-direction: column;
-        gap: 1.5rem;
+        gap: 1rem;
         min-height: 0;
     }
 
@@ -229,13 +329,13 @@
         background: #F9FAFB;
         border: 1px solid #E5E7EB;
         border-radius: 12px;
-        padding: 1.5rem;
+        padding: 1rem 1.5rem;
     }
 
     .summary-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
     }
 
     .summary-item {
@@ -245,7 +345,7 @@
     }
 
     .summary-label {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         font-weight: 500;
         color: #6B7280;
         text-transform: uppercase;
@@ -253,7 +353,7 @@
     }
 
     .summary-value {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         font-weight: 600;
         color: #1F2937;
         display: flex;
@@ -262,7 +362,7 @@
     }
 
     .progress-fraction {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         color: #6B7280;
         font-weight: 500;
     }
@@ -271,7 +371,7 @@
         padding: 0.25rem 0.75rem;
         border-radius: 12px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         text-transform: capitalize;
     }
 
@@ -349,78 +449,243 @@
     .tab-content {
         padding: 1.5rem;
         min-height: 300px;
-        max-height: 400px;
+        max-height: 500px;
         overflow-y: auto;
     }
 
-    .items-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .progress-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem;
+    /* Items Table */
+    .items-table-container {
+        overflow-x: auto;
         border: 1px solid #E5E7EB;
         border-radius: 8px;
-        background: #F9FAFB;
-        transition: all 0.3s ease;
     }
 
-    .progress-item:hover {
-        background: #F3F4F6;
-        border-color: #D1D5DB;
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1000px;
+        font-size: 0.85rem;
     }
 
-    .item-icon {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        font-size: 1.25rem;
-        flex-shrink: 0;
-    }
-
-    .progress-item.completed .item-icon {
-        background: #D1FAE5;
-    }
-
-    .progress-item.pending .item-icon {
-        background: #FEF3C7;
-    }
-
-    .progress-item.overdue .item-icon {
-        background: #FEE2E2;
-    }
-
-    .item-details {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .item-title {
+    .items-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
         font-weight: 600;
-        color: #1F2937;
-        font-size: 0.9rem;
-        line-height: 1.4;
+        color: #374151;
+        font-size: 0.8rem;
+        border-bottom: 1px solid #E5E7EB;
+        background: #F9FAFB;
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 
-    .item-meta {
+    .items-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #F3F4F6;
+        color: #6B7280;
+        vertical-align: top;
+        font-size: 0.8rem;
+    }
+
+    .items-table tbody tr:hover {
+        background: #F9FAFB;
+    }
+
+    .items-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .particulars-cell {
         display: flex;
-        gap: 1rem;
+        align-items: flex-start;
+        gap: 0.5rem;
+        max-width: 300px;
+    }
+
+    .item-status-icon {
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .assignee-name {
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .date-text {
         font-size: 0.8rem;
         color: #6B7280;
     }
 
-    .item-status {
+    .due-date {
+        color: #F59E0B;
+        font-weight: 500;
+    }
+
+    .received-date {
+        color: #059669;
+        font-weight: 500;
+    }
+
+    .requested-by-name {
+        font-weight: 500;
+        color: #374151;
+    }
+
+    /* Bulk Actions Header */
+    .bulk-actions-header {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+        padding: 0 0.5rem;
+    }
+
+    .bulk-action-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+
+    .bulk-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Files Cell */
+    .files-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-width: 200px;
+    }
+
+    .file-item-small {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+    }
+
+    .file-icon-small {
+        font-size: 0.75rem;
         flex-shrink: 0;
+    }
+
+    .file-icon-small.fa-file-pdf {
+        color: #DC2626;
+    }
+
+    .file-icon-small.fa-file-excel {
+        color: #059669;
+    }
+
+    .file-icon-small.fa-file-word {
+        color: #2563EB;
+    }
+
+    .file-details-small {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        min-width: 0;
+    }
+
+    .file-name-small {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #374151;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .file-date-small {
+        font-size: 0.65rem;
+        color: #6B7280;
+    }
+
+    /* Remarks Cell - Per File */
+    .remarks-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-width: 150px;
+    }
+
+    .file-remark-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 4px;
+    }
+
+    .file-remark-name {
+        font-size: 0.7rem;
+        color: #6B7280;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .file-remark-status {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: capitalize;
+        padding: 0.125rem 0.375rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .file-remark-status.remark-good {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .file-remark-status.remark-reject {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .file-remark-status.remark-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    /* Overdue Badge */
+    .overdue-badge {
+        padding: 0.25rem 0.5rem;
+        background: #FEE2E2;
+        color: #991B1B;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-align: center;
+        display: inline-block;
+    }
+
+    /* Reminder Button */
+    .reminder-btn {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.7rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+
+    .reminder-btn:hover {
+        transform: translateY(-1px);
     }
 
     .progress-modal-footer {
@@ -483,7 +748,7 @@
         }
 
         .summary-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .category-tabs {
@@ -494,11 +759,6 @@
             flex-direction: column;
             gap: 1rem;
         }
-
-        .item-meta {
-            flex-direction: column;
-            gap: 0.25rem;
-        }
     }
 
     @media (max-width: 480px) {
@@ -506,19 +766,13 @@
             max-height: 98vh;
         }
 
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+
         .tab-content {
             max-height: 250px;
             padding: 1rem;
-        }
-
-        .progress-item {
-            padding: 0.75rem;
-        }
-
-        .item-icon {
-            width: 32px;
-            height: 32px;
-            font-size: 1rem;
         }
     }
 </style>
@@ -539,73 +793,199 @@
                 this.generateProgressData();
             },
 
+            reminderAll(type) {
+                console.log(`Sending reminder to all ${type} items`);
+                const count = type === 'pending' ? this.pendingItems.length : 0;
+                const parentComponent = document.querySelector('[x-data*="progressTrackerManagement"]').__x;
+                if (parentComponent && parentComponent.$data.showAlert) {
+                    parentComponent.$data.showAlert(`Reminder sent to all ${count} pending items!`, 'success');
+                }
+            },
+
+            urgentAll(type) {
+                console.log(`Sending urgent reminder to all ${type} items`);
+                const count = type === 'overdue' ? this.overdueItems.length : 0;
+                const parentComponent = document.querySelector('[x-data*="progressTrackerManagement"]').__x;
+                if (parentComponent && parentComponent.$data.showAlert) {
+                    parentComponent.$data.showAlert(`Urgent reminder sent to all ${count} overdue items!`, 'warning');
+                }
+            },
+
             switchTab(tab) {
                 this.activeTab = tab;
                 console.log('Switched to tab:', tab);
             },
 
             generateProgressData() {
-                // Sample completed items
+                // Sample completed items with file-specific remarks
                 this.completedItems = [
                     {
-                        title: 'Latest Articles of Incorporation and By-laws',
-                        completedDate: 'Jul 8, 2025',
-                        assignee: 'Maria Garcia'
+                        particulars: 'Latest Articles of Incorporation and By-laws',
+                        assignedTo: 'Maria Garcia',
+                        dateRequested: 'Jan 2, 2025',
+                        files: [
+                            { name: 'Articles_of_Incorporation.pdf', type: 'PDF', submitDate: 'Jul 6, 2025', remarkStatus: 'good' },
+                            { name: 'Company_Bylaws.pdf', type: 'PDF', submitDate: 'Jul 6, 2025', remarkStatus: 'good' }
+                        ],
+                        receivedDate: 'Jul 8, 2025',
+                        requestedBy: 'Carlos Reyes'
                     },
                     {
-                        title: 'BIR Certificate of Registration',
-                        completedDate: 'Jul 7, 2025',
-                        assignee: 'James Martinez'
+                        particulars: 'BIR Certificate of Registration',
+                        assignedTo: 'James Martinez',
+                        dateRequested: 'Jan 2, 2025',
+                        files: [
+                            { name: 'BIR_Certificate_2024.pdf', type: 'PDF', submitDate: 'Jul 5, 2025', remarkStatus: 'good' }
+                        ],
+                        receivedDate: 'Jul 7, 2025',
+                        requestedBy: 'Anna Thompson'
                     },
                     {
-                        title: 'Bank statements for all accounts',
-                        completedDate: 'Jul 6, 2025',
-                        assignee: 'Kevin Taylor'
+                        particulars: 'Bank statements for all accounts for the year ended December 31, 2024',
+                        assignedTo: 'Kevin Taylor',
+                        dateRequested: 'Jan 5, 2025',
+                        files: [
+                            { name: 'BDO_Statements_Q1_2024.pdf', type: 'PDF', submitDate: 'Jul 3, 2025', remarkStatus: 'good' },
+                            { name: 'BDO_Statements_Q2_2024.pdf', type: 'PDF', submitDate: 'Jul 3, 2025', remarkStatus: 'reject' },
+                            { name: 'BPI_Statements_Q3_2024.pdf', type: 'PDF', submitDate: 'Jul 4, 2025', remarkStatus: 'good' },
+                            { name: 'BPI_Statements_Q4_2024.pdf', type: 'PDF', submitDate: 'Jul 4, 2025', remarkStatus: 'good' }
+                        ],
+                        receivedDate: 'Jul 6, 2025',
+                        requestedBy: 'David Wilson'
                     },
                     {
-                        title: 'General ledger for all accounts',
-                        completedDate: 'Jul 5, 2025',
-                        assignee: 'Ryan Hall'
+                        particulars: 'General ledger for all accounts',
+                        assignedTo: 'Ryan Hall',
+                        dateRequested: 'Jan 10, 2025',
+                        files: [
+                            { name: 'General_Ledger_2024_Complete.xlsx', type: 'XLSX', submitDate: 'Jul 1, 2025', remarkStatus: 'good' }
+                        ],
+                        receivedDate: 'Jul 5, 2025',
+                        requestedBy: 'Michelle Lopez'
                     },
                     {
-                        title: 'Trial balance as at December 31, 2024',
-                        completedDate: 'Jul 4, 2025',
-                        assignee: 'Amanda Clark'
+                        particulars: 'Trial balance as at December 31, 2024',
+                        assignedTo: 'Amanda Clark',
+                        dateRequested: 'Jan 8, 2025',
+                        files: [
+                            { name: 'Trial_Balance_2024.xlsx', type: 'XLSX', submitDate: 'Jun 30, 2025', remarkStatus: 'good' },
+                            { name: 'Supporting_Schedules.docx', type: 'DOCX', submitDate: 'Jun 30, 2025', remarkStatus: 'reject' }
+                        ],
+                        receivedDate: 'Jul 4, 2025',
+                        requestedBy: 'Kevin Taylor'
+                    },
+                    {
+                        particulars: 'Fixed assets register with depreciation schedules',
+                        assignedTo: 'Michelle Lopez',
+                        dateRequested: 'Jan 12, 2025',
+                        files: [
+                            { name: 'Fixed_Assets_Register.xlsx', type: 'XLSX', submitDate: 'Jun 28, 2025', remarkStatus: 'good' },
+                            { name: 'Depreciation_Schedules.pdf', type: 'PDF', submitDate: 'Jun 28, 2025', remarkStatus: 'good' }
+                        ],
+                        receivedDate: 'Jul 2, 2025',
+                        requestedBy: 'Amanda Clark'
+                    },
+                    {
+                        particulars: 'Accounts payable aging and vendor listing',
+                        assignedTo: 'David Wilson',
+                        dateRequested: 'Jan 15, 2025',
+                        files: [
+                            { name: 'AP_Aging_Report.xlsx', type: 'XLSX', submitDate: 'Jun 25, 2025', remarkStatus: 'reject' },
+                            { name: 'Vendor_Master_List.pdf', type: 'PDF', submitDate: 'Jun 25, 2025', remarkStatus: 'good' }
+                        ],
+                        receivedDate: 'Jun 30, 2025',
+                        requestedBy: 'Ryan Hall'
                     }
                 ];
 
                 // Sample pending items
                 this.pendingItems = [
                     {
-                        title: 'Latest General Information Sheet filed with SEC',
+                        particulars: 'Latest General Information Sheet filed with SEC',
+                        assignedTo: 'Anna Thompson',
+                        dateRequested: 'Jan 2, 2025',
                         dueDate: 'Jul 15, 2025',
-                        assignee: 'Anna Thompson'
+                        requestedBy: 'Carlos Reyes'
                     },
                     {
-                        title: 'Stock transfer book',
+                        particulars: 'Stock transfer book and stockholder records',
+                        assignedTo: 'David Wilson',
+                        dateRequested: 'Jan 2, 2025',
                         dueDate: 'Jul 18, 2025',
-                        assignee: 'David Wilson'
+                        requestedBy: 'Anna Thompson'
                     },
                     {
-                        title: 'Fixed assets register',
+                        particulars: 'Insurance policies and coverage documentation',
+                        assignedTo: 'Michelle Lopez',
+                        dateRequested: 'Jan 12, 2025',
                         dueDate: 'Jul 20, 2025',
-                        assignee: 'Michelle Lopez'
+                        requestedBy: 'David Wilson'
+                    },
+                    {
+                        particulars: 'Legal contracts and agreements for 2024',
+                        assignedTo: 'Carlos Reyes',
+                        dateRequested: 'Jan 18, 2025',
+                        dueDate: 'Jul 22, 2025',
+                        requestedBy: 'Michelle Lopez'
+                    },
+                    {
+                        particulars: 'Inventory count reports and supporting schedules',
+                        assignedTo: 'Amanda Clark',
+                        dateRequested: 'Jan 20, 2025',
+                        dueDate: 'Jul 25, 2025',
+                        requestedBy: 'Kevin Taylor'
                     }
                 ];
 
                 // Sample overdue items
                 this.overdueItems = [
                     {
-                        title: 'Minutes of meetings of stockholders and board',
-                        overdueBy: 5,
-                        assignee: 'Michelle Lopez'
+                        particulars: 'Minutes of meetings of stockholders, board of directors, and executive committee',
+                        assignedTo: 'Michelle Lopez',
+                        dateRequested: 'Jan 2, 2025',
+                        daysOutstanding: 12,
+                        requestedBy: 'Carlos Reyes'
                     },
                     {
-                        title: 'Accounts receivable aging report',
-                        overdueBy: 3,
-                        assignee: 'Carlos Reyes'
+                        particulars: 'Accounts receivable aging report and collection procedures',
+                        assignedTo: 'Carlos Reyes',
+                        dateRequested: 'Jan 15, 2025',
+                        daysOutstanding: 8,
+                        requestedBy: 'Anna Thompson'
+                    },
+                    {
+                        particulars: 'Payroll registers and employee benefit documentation',
+                        assignedTo: 'Ryan Hall',
+                        dateRequested: 'Jan 8, 2025',
+                        daysOutstanding: 15,
+                        requestedBy: 'David Wilson'
+                    },
+                    {
+                        particulars: 'Tax returns and correspondence with BIR',
+                        assignedTo: 'James Martinez',
+                        dateRequested: 'Jan 10, 2025',
+                        daysOutstanding: 6,
+                        requestedBy: 'Michelle Lopez'
                     }
                 ];
+            },
+
+            sendReminder(item) {
+                console.log('Sending reminder for:', item.particulars);
+                // Parent component's showAlert method
+                const parentComponent = document.querySelector('[x-data*="progressTrackerManagement"]').__x;
+                if (parentComponent && parentComponent.$data.showAlert) {
+                    parentComponent.$data.showAlert(`Reminder sent to ${item.assignedTo} for: ${item.particulars}`, 'success');
+                }
+            },
+
+            sendUrgentReminder(item) {
+                console.log('Sending urgent reminder for:', item.particulars);
+                // Parent component's showAlert method
+                const parentComponent = document.querySelector('[x-data*="progressTrackerManagement"]').__x;
+                if (parentComponent && parentComponent.$data.showAlert) {
+                    parentComponent.$data.showAlert(`Urgent reminder sent to ${item.assignedTo} for overdue item: ${item.particulars}`, 'warning');
+                }
             },
 
             generateDetailedReport() {

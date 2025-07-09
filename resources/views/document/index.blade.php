@@ -1,25 +1,25 @@
 @extends('layouts.app')
 
-@section('title', 'Progress Tracker')
-@section('page-title', 'Progress Tracker')
-@section('page-subtitle', 'Track audit progress, monitor file submissions, and review completion status')
+@section('title', 'Document Archive')
+@section('page-title', 'Document Archive')
+@section('page-subtitle', 'Manage and review accepted and rejected project files')
 
 @section('content')
-<div x-data="progressTrackerManagement()" x-init="init()">
+<div x-data="documentArchiveManagement()" x-init="init()">
     <!-- HEADER ACTIONS -->
-    <div class="progress-management-header">
+    <div class="document-management-header">
         <div class="header-title">
-            <h2>Progress Tracker</h2>
-            <p class="header-description">Track audit progress, monitor file submissions, and review completion status</p>
+            <h2>Document Archive</h2>
+            <p class="header-description">Manage and review accepted and rejected project files</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-secondary" @click="exportProgress()" :disabled="loading">
+            <button class="btn btn-secondary" @click="exportDocuments()" :disabled="loading">
                 <i class="fas fa-download"></i>
-                Export Progress Report
+                Export Archive
             </button>
-            <button class="btn btn-primary" @click="refreshProgress()" :disabled="loading">
+            <button class="btn btn-primary" @click="refreshDocuments()" :disabled="loading">
                 <i class="fas fa-sync-alt"></i>
-                Refresh Progress
+                Refresh Archive
             </button>
         </div>
     </div>
@@ -28,38 +28,38 @@
     <div class="summary-cards" x-show="!loading">
         <div class="summary-card total">
             <div class="card-icon">
-                <i class="fas fa-clipboard-list"></i>
+                <i class="fas fa-archive"></i>
             </div>
             <div class="card-content">
-                <div class="card-number" x-text="stats.total || 3"></div>
+                <div class="card-number" x-text="stats.totalProjects || 3"></div>
                 <div class="card-label">Total Projects</div>
             </div>
         </div>
-        <div class="summary-card completed">
+        <div class="summary-card accepted">
             <div class="card-icon">
                 <i class="fas fa-check-circle"></i>
             </div>
             <div class="card-content">
-                <div class="card-number" x-text="stats.completed || 1"></div>
-                <div class="card-label">Completed</div>
+                <div class="card-number" x-text="stats.acceptedFiles || 65"></div>
+                <div class="card-label">Accepted Files</div>
             </div>
         </div>
-        <div class="summary-card pending">
+        <div class="summary-card rejected">
             <div class="card-icon">
-                <i class="fas fa-clock"></i>
+                <i class="fas fa-times-circle"></i>
             </div>
             <div class="card-content">
-                <div class="card-number" x-text="stats.pending || 2"></div>
-                <div class="card-label">In Progress</div>
+                <div class="card-number" x-text="stats.rejectedFiles || 12"></div>
+                <div class="card-label">Rejected Files</div>
             </div>
         </div>
-        <div class="summary-card files">
+        <div class="summary-card storage">
             <div class="card-icon">
-                <i class="fas fa-file-alt"></i>
+                <i class="fas fa-hdd"></i>
             </div>
             <div class="card-content">
-                <div class="card-number" x-text="stats.totalFiles || 156"></div>
-                <div class="card-label">Total Files</div>
+                <div class="card-number" x-text="stats.totalStorage || '89.2'"></div>
+                <div class="card-label">Total Storage (GB)</div>
             </div>
         </div>
     </div>
@@ -68,13 +68,13 @@
     <div class="filters-section">
         <div class="filters-grid">
             <div class="filter-group">
-                <label class="filter-label">Search Projects</label>
+                <label class="filter-label">Search Archive</label>
                 <div class="search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input
                         type="text"
                         class="filter-input search-input"
-                        placeholder="Search by project, client, or template..."
+                        placeholder="Search by project, client, or file name..."
                         x-model="filters.search"
                     >
                 </div>
@@ -101,12 +101,11 @@
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">Progress Status</label>
+                <label class="filter-label">File Status</label>
                 <select class="filter-select" x-model="filters.status">
-                    <option value="">All Status</option>
-                    <option value="not-started">Not Started</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
+                    <option value="">All Files</option>
+                    <option value="accepted">Accepted Only</option>
+                    <option value="rejected">Rejected Only</option>
                 </select>
             </div>
 
@@ -134,18 +133,18 @@
     <div x-show="loading" class="loading-container">
         <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
-            <span>Loading progress data...</span>
+            <span>Loading document archive...</span>
         </div>
     </div>
 
-    <!-- PROGRESS TRACKER TABLE -->
-    <div class="progress-requests-card" x-show="!loading">
+    <!-- DOCUMENT ARCHIVE TABLE -->
+    <div class="document-requests-card" x-show="!loading">
         <div class="table-header">
             <div class="table-title">
-                <h3>Project Progress (6)</h3>
+                <h3>Document Archive (3)</h3>
             </div>
             <div class="table-actions">
-                <button class="btn btn-sm btn-secondary" @click="refreshProgress()">
+                <button class="btn btn-sm btn-secondary" @click="refreshDocuments()">
                     <i class="fas fa-sync-alt"></i>
                     Refresh
                 </button>
@@ -153,13 +152,13 @@
         </div>
 
         <div class="table-container">
-            <table class="progress-requests-table">
+            <table class="document-requests-table">
                 <thead>
                     <tr>
                         <th>PBC Details</th>
                         <th>Project & Client</th>
                         <th>Template</th>
-                        <th>Progress</th>
+                        <th>Total Files</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -190,24 +189,19 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="progress-info">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" :style="'width: ' + project.progressPercentage + '%'"></div>
-                                    </div>
-                                    <div class="progress-text" x-text="project.progressPercentage + '% (' + project.completedItems + '/' + project.totalItems + ')'">
-                                    </div>
+                                <div class="files-info">
+                                    <button class="btn btn-sm btn-success files-btn accepted-btn" @click="openAcceptedFilesModal(project)">
+                                        <span x-text="'Accepted Files (' + project.acceptedFiles + ')'"></span>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger files-btn rejected-btn" @click="openRejectedFilesModal(project)">
+                                        <span x-text="'Rejected Files(' + project.rejectedFiles + ')'"></span>
+                                    </button>
                                 </div>
                             </td>
                             <td>
                                 <div class="actions-cell">
-                                      <button class="btn btn-xs btn-info view-progress-btn" @click="openProgressModal(project)" title="View Progress Details">
+                                    <button class="btn btn-xs btn-secondary" @click="viewDocuments(project)" title="View All Documents">
                                         <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-xs btn-primary" @click="generateReport(project)" title="Generate Report">
-                                        <i class="fas fa-file-alt"></i>
-                                    </button>
-                                    <button class="btn btn-xs btn-warning" @click="exportProgress(project)" title="Export Data">
-                                        <i class="fas fa-download"></i>
                                     </button>
                                 </div>
                             </td>
@@ -373,15 +367,12 @@
             </div>
         </div>
     </div>
-
-    <!-- PROGRESS DETAILS MODAL -->
-    @include('progress.progress-modal')
 </div>
 
 @push('styles')
 <style>
-    /* Progress Tracker Management Styles */
-    .progress-management-header {
+    /* Document Archive Management Styles */
+    .document-management-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -439,10 +430,10 @@
         height: 100%;
     }
 
-    .summary-card.total::before { background: #3B82F6; }
-    .summary-card.completed::before { background: #10B981; }
-    .summary-card.pending::before { background: #F59E0B; }
-    .summary-card.files::before { background: #8B5CF6; }
+    .summary-card.total::before { background: #8B5CF6; }
+    .summary-card.accepted::before { background: #10B981; }
+    .summary-card.rejected::before { background: #EF4444; }
+    .summary-card.storage::before { background: #3B82F6; }
 
     .card-icon {
         width: 48px;
@@ -456,10 +447,10 @@
         flex-shrink: 0;
     }
 
-    .summary-card.total .card-icon { background: #3B82F6; }
-    .summary-card.completed .card-icon { background: #10B981; }
-    .summary-card.pending .card-icon { background: #F59E0B; }
-    .summary-card.files .card-icon { background: #8B5CF6; }
+    .summary-card.total .card-icon { background: #8B5CF6; }
+    .summary-card.accepted .card-icon { background: #10B981; }
+    .summary-card.rejected .card-icon { background: #EF4444; }
+    .summary-card.storage .card-icon { background: #3B82F6; }
 
     .card-content {
         flex: 1;
@@ -542,13 +533,8 @@
         color: white;
     }
 
-    .btn-info {
-        background: #3B82F6;
-        color: white;
-    }
-
-    .btn-info:hover:not(:disabled) {
-        background: #2563EB;
+    .btn-danger:hover:not(:disabled) {
+        background: #DC2626;
     }
 
     .btn-xs {
@@ -592,7 +578,7 @@
         background: #DC2626;
     }
 
-    /* Filters Section */
+    /* Rest of styles same as progress tracker... */
     .filters-section {
         background: white;
         border-radius: 12px;
@@ -651,7 +637,6 @@
         padding-left: 2.5rem;
     }
 
-    /* Loading */
     .loading-container {
         display: flex;
         justify-content: center;
@@ -674,8 +659,7 @@
         font-size: 2rem;
     }
 
-    /* Table */
-    .progress-requests-card {
+    .document-requests-card {
         background: white;
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -702,13 +686,13 @@
         overflow-x: auto;
     }
 
-    .progress-requests-table {
+    .document-requests-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 1200px;
+        min-width: 1000px;
     }
 
-    .progress-requests-table th {
+    .document-requests-table th {
         padding: 1rem 1.5rem;
         text-align: left;
         font-weight: 600;
@@ -719,18 +703,17 @@
         white-space: nowrap;
     }
 
-    .progress-requests-table td {
+    .document-requests-table td {
         padding: 1rem 1.5rem;
         border-bottom: 1px solid #F3F4F6;
         color: #6B7280;
         vertical-align: top;
     }
 
-    .progress-requests-table tbody tr:hover {
+    .document-requests-table tbody tr:hover {
         background: #F9FAFB;
     }
 
-    /* Table Cell Content */
     .request-info {
         min-width: 250px;
     }
@@ -778,50 +761,6 @@
         display: block;
     }
 
-    .progress-info {
-        min-width: 140px;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .view-progress-btn {
-        background: #3B82F6;
-        color: white;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.7rem;
-        border-radius: 4px;
-        transition: all 0.3s ease;
-        align-self: center;
-        margin-top: 0.25rem;
-    }
-
-    .view-progress-btn:hover {
-        background: #2563EB;
-        transform: translateY(-1px);
-    }
-
-    .progress-bar {
-        width: 100%;
-        height: 8px;
-        background: #F3F4F6;
-        border-radius: 4px;
-        overflow: hidden;
-        margin-bottom: 0.5rem;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #10B981, #059669);
-        transition: width 0.3s ease;
-    }
-
-    .progress-text {
-        font-size: 0.8rem;
-        color: #6B7280;
-        text-align: center;
-    }
-
     .files-info {
         min-width: 180px;
         display: flex;
@@ -834,10 +773,10 @@
         gap: 0.5rem;
         align-items: center;
         flex-wrap: wrap;
-        min-width: 120px;
+        min-width: 80px;
     }
 
-    /* Files Modal Styles */
+    /* Files Modal Styles (same as progress tracker) */
     .files-modal-overlay {
         position: fixed;
         top: 0;
@@ -1115,31 +1054,6 @@
         flex-shrink: 0;
     }
 
-    /* Custom Scrollbar for webkit browsers */
-    .files-modal-body::-webkit-scrollbar,
-    .files-table-container::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    .files-modal-body::-webkit-scrollbar-track,
-    .files-table-container::-webkit-scrollbar-track {
-        background: #F3F4F6;
-        border-radius: 4px;
-    }
-
-    .files-modal-body::-webkit-scrollbar-thumb,
-    .files-table-container::-webkit-scrollbar-thumb {
-        background: #D1D5DB;
-        border-radius: 4px;
-    }
-
-    .files-modal-body::-webkit-scrollbar-thumb:hover,
-    .files-table-container::-webkit-scrollbar-thumb:hover {
-        background: #9CA3AF;
-    }
-
-    /* Utility classes */
     .text-green-600 {
         color: #059669;
     }
@@ -1149,22 +1063,6 @@
     }
 
     /* Responsive Design */
-    @media (max-width: 1200px) {
-        .filters-grid {
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .filters-grid .filter-group:nth-child(5) {
-            grid-column: span 2;
-        }
-
-        .filters-grid .filter-group:nth-child(6) {
-            grid-column: span 4;
-            justify-self: center;
-        }
-    }
-
     @media (max-width: 768px) {
         .summary-cards {
             grid-template-columns: repeat(2, 1fr);
@@ -1174,7 +1072,7 @@
             grid-template-columns: 1fr;
         }
 
-        .progress-management-header {
+        .document-management-header {
             flex-direction: column;
             align-items: stretch;
         }
@@ -1182,60 +1080,12 @@
         .header-actions {
             justify-content: stretch;
         }
-
-        .table-container {
-            overflow-x: scroll;
-        }
-
-        .files-modal {
-            margin: 0.5rem;
-            max-width: calc(100vw - 1rem);
-            max-height: 95vh;
-        }
-
-        .files-modal-header,
-        .files-modal-body,
-        .files-modal-footer {
-            padding: 1rem;
-        }
-
-        .files-table-container {
-            max-height: 300px;
-        }
     }
 
     @media (max-width: 480px) {
         .summary-cards {
             grid-template-columns: 1fr;
         }
-
-        .files-modal {
-            max-height: 98vh;
-        }
-
-        .file-name-cell {
-            min-width: 120px;
-            max-width: 150px;
-        }
-
-        .file-name-cell span {
-            max-width: 100px;
-        }
-
-        .files-table-container {
-            max-height: 200px;
-        }
-    }
-
-    /* Alpine.js Transitions */
-    [x-cloak] { display: none !important; }
-
-    .fade-enter-active, .fade-leave-active {
-        transition: opacity 0.3s ease;
-    }
-
-    .fade-enter-from, .fade-leave-to {
-        opacity: 0;
     }
 </style>
 @endpush
@@ -1243,9 +1093,9 @@
 @push('scripts')
 <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
-    function progressTrackerManagement() {
+    function documentArchiveManagement() {
         return {
-            // Data
+            // Data - same projects as progress tracker but focused on files
             projects: [
                 {
                     id: 1,
@@ -1254,13 +1104,10 @@
                     projectType: 'Tax',
                     period: '2024-12-31',
                     template: 'AT-700',
-                    progressPercentage: 85,
-                    completedItems: 34,
-                    totalItems: 40,
                     acceptedFiles: 28,
                     rejectedFiles: 6,
                     startDate: 'Jul 5, 2025',
-                    status: 'in-progress'
+                    status: 'active'
                 },
                 {
                     id: 2,
@@ -1269,13 +1116,10 @@
                     projectType: 'Audit',
                     period: '2024-12-31',
                     template: 'Standard Audit',
-                    progressPercentage: 45,
-                    completedItems: 18,
-                    totalItems: 40,
                     acceptedFiles: 15,
                     rejectedFiles: 3,
                     startDate: 'Jun 20, 2025',
-                    status: 'in-progress'
+                    status: 'active'
                 },
                 {
                     id: 3,
@@ -1284,9 +1128,6 @@
                     projectType: 'Tax Review',
                     period: '2024-12-31',
                     template: 'Tax Review',
-                    progressPercentage: 100,
-                    completedItems: 25,
-                    totalItems: 25,
                     acceptedFiles: 22,
                     rejectedFiles: 3,
                     startDate: 'May 15, 2025',
@@ -1297,10 +1138,10 @@
             acceptedFilesList: [],
             rejectedFilesList: [],
             stats: {
-                total: 3,
-                completed: 1,
-                pending: 2,
-                totalFiles: 156
+                totalProjects: 3,
+                acceptedFiles: 65,
+                rejectedFiles: 12,
+                totalStorage: '89.2'
             },
             filters: {
                 search: '',
@@ -1314,11 +1155,10 @@
             // Modal states
             showAcceptedModal: false,
             showRejectedModal: false,
-            showProgressModal: false,
 
             // Initialize
             init() {
-                console.log('🚀 Progress Tracker Management Init (UI Only)');
+                console.log('🚀 Document Archive Management Init (UI Only)');
                 this.loading = false;
             },
 
@@ -1349,19 +1189,7 @@
                 this.rejectedFilesList = [];
             },
 
-            // Progress modal management
-            openProgressModal(project) {
-                this.selectedProject = project;
-                this.showProgressModal = true;
-                console.log('Opening progress modal for:', project.clientName);
-            },
-
-            closeProgressModal() {
-                this.showProgressModal = false;
-                this.selectedProject = null;
-            },
-
-            // Generate fake accepted files data
+            // Generate fake accepted files data (same as progress tracker)
             generateAcceptedFiles(project) {
                 const acceptedFiles = [
                     { name: 'Articles_of_Incorporation.pdf', type: 'PDF', size: '2.4 MB', dateAccepted: 'Jul 8, 2025' },
@@ -1384,7 +1212,7 @@
                 return acceptedFiles.slice(0, project.acceptedFiles);
             },
 
-            // Generate fake rejected files data
+            // Generate fake rejected files data (same as progress tracker)
             generateRejectedFiles(project) {
                 const rejectedFiles = [
                     { name: 'Incomplete_Financial_Report.pdf', type: 'PDF', size: '1.2 MB', dateRejected: 'Jul 9, 2025' },
@@ -1399,34 +1227,22 @@
             },
 
             // Utility functions
-            viewProgress(project) {
-                console.log('Viewing progress details for:', project.clientName);
-                this.showAlert(`Opening detailed progress view for ${project.clientName}`, 'info');
-
-                window.location.href = '/document.index';
+            viewDocuments(project) {
+                console.log('Viewing all documents for:', project.clientName);
+                this.showAlert(`Opening document archive for ${project.clientName}`, 'info');
             },
 
-            generateReport(project) {
-                console.log('Generating report for:', project.clientName);
-                this.showAlert(`Generating progress report for ${project.clientName}`, 'success');
+            exportDocuments() {
+                console.log('Exporting document archive...');
+                this.showAlert('Exporting document archive', 'info');
             },
 
-            exportProgress(project = null) {
-                if (project) {
-                    console.log('Exporting progress for:', project.clientName);
-                    this.showAlert(`Exporting progress data for ${project.clientName}`, 'info');
-                } else {
-                    console.log('Exporting all progress data...');
-                    this.showAlert('Exporting complete progress report', 'info');
-                }
-            },
-
-            refreshProgress() {
-                console.log('Refreshing progress data...');
+            refreshDocuments() {
+                console.log('Refreshing document archive...');
                 this.loading = true;
                 setTimeout(() => {
                     this.loading = false;
-                    this.showAlert('Progress data refreshed!', 'success');
+                    this.showAlert('Document archive refreshed!', 'success');
                 }, 1000);
             },
 
@@ -1459,7 +1275,6 @@
 
             // Alert system
             showAlert(message, type = 'info') {
-                // Create alert element
                 const alert = document.createElement('div');
                 alert.className = `alert alert-${type}`;
                 alert.innerHTML = `
@@ -1469,13 +1284,9 @@
                     </div>
                 `;
 
-                // Add to page
                 document.body.appendChild(alert);
-
-                // Add show class for animation
                 setTimeout(() => alert.classList.add('show'), 100);
 
-                // Remove after delay
                 setTimeout(() => {
                     alert.classList.remove('show');
                     setTimeout(() => {
@@ -1489,7 +1300,7 @@
     }
 </script>
 
-<!-- Alert Styles -->
+<!-- Alert Styles (same as progress tracker) -->
 <style>
     .alert {
         position: fixed;

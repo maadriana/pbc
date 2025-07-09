@@ -156,4 +156,16 @@ Route::prefix('progress')->group(function () {
     Route::get('/', function () {
         return view('progress.index');
     })->name('progress.index');
+
+    Route::get('/modal', function () {
+        return view('progress.progress-modal');
+    })->name('progress.modal');
+});
+
+
+// DOCUMENT ARCHIVE - UI ONLY ROUTES
+Route::prefix('document')->group(function () {
+    Route::get('/', function () {
+        return view('document.index');
+    })->name('document.index');
 });

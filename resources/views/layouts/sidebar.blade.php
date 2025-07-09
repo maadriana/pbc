@@ -72,12 +72,13 @@
             <div class="nav-section-title">Documents</div>
 
             {{-- Document Archive - Show for all users (different access levels) --}}
-            @if(auth()->user()->hasPermission('view_document'))
-            <a href="#" class="nav-item">
-                <div class="nav-icon"><i class="fas fa-archive"></i></div>
-                <span class="nav-text">Document Archive</span>
-            </a>
-            @endif
+            {{-- Document Archive - Show for all users (different access levels) --}}
+@if(auth()->user()->hasPermission('view_document'))
+    <a href="{{ route('document.index') }}" class="nav-item {{ request()->routeIs('document.*') ? 'active' : '' }}">
+        <div class="nav-icon"><i class="fas fa-archive"></i></div>
+        <span class="nav-text">Document Archive</span>
+    </a>
+@endif
         </div>
         @endif
 
